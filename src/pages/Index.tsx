@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,9 +31,9 @@ export default function Index() {
   ]);
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedManufacturer, setSelectedManufacturer] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("");
-  const [selectedSubcategory, setSelectedSubcategory] = useState("");
+  const [selectedManufacturer, setSelectedManufacturer] = useState("all");
+  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [selectedSubcategory, setSelectedSubcategory] = useState("all");
   const [certificationFilters, setCertificationFilters] = useState({
     EPD: false,
     LCA: false,
@@ -147,7 +148,7 @@ export default function Index() {
                     <SelectValue placeholder="Manufacturer" />
                   </SelectTrigger>
                   <SelectContent className="bg-[#323232] border-[#424242]">
-                    <SelectItem value="">All Manufacturers</SelectItem>
+                    <SelectItem value="all">All Manufacturers</SelectItem>
                     {manufacturers.map(mfg => (
                       <SelectItem key={mfg} value={mfg}>{mfg}</SelectItem>
                     ))}
@@ -159,7 +160,7 @@ export default function Index() {
                     <SelectValue placeholder="Category" />
                   </SelectTrigger>
                   <SelectContent className="bg-[#323232] border-[#424242]">
-                    <SelectItem value="">All Categories</SelectItem>
+                    <SelectItem value="all">All Categories</SelectItem>
                     {categories.map(cat => (
                       <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                     ))}
@@ -171,8 +172,8 @@ export default function Index() {
                     <SelectValue placeholder="Subcategory" />
                   </SelectTrigger>
                   <SelectContent className="bg-[#323232] border-[#424242]">
-                    <SelectItem value="">All Subcategories</SelectItem>
-                    {selectedCategory && subcategories[selectedCategory]?.map(sub => (
+                    <SelectItem value="all">All Subcategories</SelectItem>
+                    {selectedCategory && selectedCategory !== "all" && subcategories[selectedCategory]?.map(sub => (
                       <SelectItem key={sub} value={sub}>{sub}</SelectItem>
                     ))}
                   </SelectContent>
