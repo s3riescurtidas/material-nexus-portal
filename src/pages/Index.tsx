@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,14 +9,32 @@ import { Search, Edit, Trash2, Eye, Plus, Upload } from "lucide-react";
 import { MaterialForm } from "@/components/MaterialForm";
 import { ProjectForm } from "@/components/ProjectForm";
 
+interface Evaluation {
+  id: number;
+  type: string;
+  version: string;
+  issueDate: string;
+  validTo: string;
+}
+
+interface Material {
+  id: number;
+  name: string;
+  manufacturer: string;
+  category: string;
+  subcategory: string;
+  description: string;
+  evaluations: Evaluation[];
+}
+
 export default function Index() {
   const [activeTab, setActiveTab] = useState("search");
   const [showMaterialForm, setShowMaterialForm] = useState(false);
-  const [editingMaterial, setEditingMaterial] = useState(null);
+  const [editingMaterial, setEditingMaterial] = useState<Material | null>(null);
   const [showProjectForm, setShowProjectForm] = useState(false);
   
   // Sample data for demonstration
-  const [materials, setMaterials] = useState([
+  const [materials, setMaterials] = useState<Material[]>([
     {
       id: 1,
       name: "Madeira escura vaselinada",
@@ -51,32 +70,32 @@ export default function Index() {
 
   const manufacturers = ["Madeiras & madeira", "Amorim Cimentos", "Test Manufacturer"];
   const categories = ["Wood", "Concrete", "Metal", "Glass"];
-  const subcategories = {
+  const subcategories: Record<string, string[]> = {
     "Wood": ["Treated Wood", "Natural Wood", "Laminated Wood"],
     "Concrete": ["Standard Concrete", "High Performance Concrete"],
     "Metal": ["Steel", "Aluminum", "Copper"],
     "Glass": ["Standard Glass", "Tempered Glass", "Laminated Glass"]
   };
 
-  const handleCertificationFilter = (certification, checked) => {
+  const handleCertificationFilter = (certification: string, checked: boolean) => {
     setCertificationFilters(prev => ({
       ...prev,
       [certification]: checked
     }));
   };
 
-  const handleEditMaterial = (material) => {
+  const handleEditMaterial = (material: Material) => {
     setEditingMaterial(material);
     setShowMaterialForm(true);
   };
 
-  const handleDeleteMaterial = (materialId) => {
+  const handleDeleteMaterial = (materialId: number) => {
     if (confirm("Tem certeza que deseja excluir este material?")) {
       setMaterials(prev => prev.filter(m => m.id !== materialId));
     }
   };
 
-  const checkEvaluationStatus = (evaluationData, projectStart = "2023-01-01", projectEnd = "2027-12-31") => {
+  const checkEvaluationStatus = (evaluationData: Evaluation, projectStart = "2023-01-01", projectEnd = "2027-12-31") => {
     const evaluationStart = new Date(evaluationData.issueDate);
     const evaluationEnd = new Date(evaluationData.validTo);
     const projStart = new Date(projectStart);
@@ -92,14 +111,14 @@ export default function Index() {
     return "purple";
   };
 
-  const getEvaluationDisplayText = (evaluation) => {
+  const getEvaluationDisplayText = (evaluation: Evaluation) => {
     const version = evaluation.version ? ` v${evaluation.version}` : '';
     return `${evaluation.type}${version}`;
   };
 
   // Group evaluations by type for display
-  const groupEvaluationsByType = (evaluations) => {
-    const grouped = {};
+  const groupEvaluationsByType = (evaluations: Evaluation[]) => {
+    const grouped: Record<string, Evaluation[]> = {};
     evaluations.forEach(evaluation => {
       if (!grouped[evaluation.type]) {
         grouped[evaluation.type] = [];
@@ -207,7 +226,7 @@ export default function Index() {
                       <Checkbox
                         id={cert}
                         checked={checked}
-                        onCheckedChange={(checked) => handleCertificationFilter(cert, checked)}
+                        onCheckedChange={(checked) => handleCertificationFilter(cert, checked as boolean)}
                       />
                       <label htmlFor={cert} className="text-sm">{cert}</label>
                     </div>
