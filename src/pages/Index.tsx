@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,7 +24,9 @@ export default function Index() {
       subcategory: "Treated Wood",
       description: "High quality treated wood",
       evaluations: [
-        { type: "EPD", issueDate: "2021-01-01", validTo: "2026-12-31" }
+        { id: 1, type: "EPD", version: "1.0", issueDate: "2021-01-01", validTo: "2026-12-31" },
+        { id: 2, type: "EPD", version: "2.0", issueDate: "2022-06-01", validTo: "2027-05-31" },
+        { id: 3, type: "LCA", version: "1.0", issueDate: "2021-03-01", validTo: "2026-02-28" }
       ]
     }
   ]);
@@ -76,19 +77,36 @@ export default function Index() {
   };
 
   const checkEvaluationStatus = (evaluationData, projectStart = "2023-01-01", projectEnd = "2027-12-31") => {
-    const evalStart = new Date(evaluationData.issueDate);
-    const evalEnd = new Date(evaluationData.validTo);
+    const evaluationStart = new Date(evaluationData.issueDate);
+    const evaluationEnd = new Date(evaluationData.validTo);
     const projStart = new Date(projectStart);
     const projEnd = new Date(projectEnd);
 
-    if (evalEnd >= projStart && evalStart <= projEnd) {
+    if (evaluationEnd >= projStart && evaluationStart <= projEnd) {
       return "green"; // Valid during project
-    } else if (evalEnd < projStart) {
+    } else if (evaluationEnd < projStart) {
       return "red"; // Expired before project
-    } else if (evalStart > projEnd) {
+    } else if (evaluationStart > projEnd) {
       return "blue"; // Valid after project
     }
     return "purple";
+  };
+
+  const getEvaluationDisplayText = (evaluation) => {
+    const version = evaluation.version ? ` v${evaluation.version}` : '';
+    return `${evaluation.type}${version}`;
+  };
+
+  // Group evaluations by type for display
+  const groupEvaluationsByType = (evaluations) => {
+    const grouped = {};
+    evaluations.forEach(evaluation => {
+      if (!grouped[evaluation.type]) {
+        grouped[evaluation.type] = [];
+      }
+      grouped[evaluation.type].push(evaluation);
+    });
+    return grouped;
   };
 
   return (
@@ -197,59 +215,70 @@ export default function Index() {
                 </div>
               </div>
 
-              {/* Materials List */}
+              {/* Enhanced Materials List */}
               <div className="space-y-4">
-                {materials.map(material => (
-                  <div key={material.id} className="bg-[#323232] border border-[#424242] rounded-lg p-4">
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <h3 className="text-xl font-bold">{material.name}</h3>
-                        <p className="text-[#B5B5B5]">Manufacturer: {material.manufacturer}</p>
-                        <p className="text-[#B5B5B5]">Category: {material.category}</p>
-                        <p className="text-[#B5B5B5]">Description: {material.description || "N/A"}</p>
-                        <div className="mt-2">
-                          {material.evaluations.length > 0 ? (
-                            <div className="flex flex-wrap gap-2">
-                              {material.evaluations.map((evaluationData, idx) => (
-                                <span 
-                                  key={idx}
-                                  className="text-sm px-2 py-1 rounded"
-                                  style={{ color: checkEvaluationStatus(evaluationData) }}
-                                >
-                                  {evaluationData.type}
-                                </span>
-                              ))}
-                            </div>
-                          ) : (
-                            <span className="text-[#B5B5B5]">N/A</span>
-                          )}
+                {materials.map(material => {
+                  const groupedEvaluations = groupEvaluationsByType(material.evaluations);
+                  
+                  return (
+                    <div key={material.id} className="bg-[#323232] border border-[#424242] rounded-lg p-4">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <h3 className="text-xl font-bold">{material.name}</h3>
+                          <p className="text-[#B5B5B5]">Manufacturer: {material.manufacturer}</p>
+                          <p className="text-[#B5B5B5]">Category: {material.category}</p>
+                          <p className="text-[#B5B5B5]">Description: {material.description || "N/A"}</p>
+                          <div className="mt-2">
+                            {material.evaluations.length > 0 ? (
+                              <div className="space-y-1">
+                                {Object.entries(groupedEvaluations).map(([type, typeEvaluations]) => (
+                                  <div key={type} className="flex flex-wrap gap-2">
+                                    <span className="text-sm font-medium text-[#B5B5B5] min-w-[50px]">{type}:</span>
+                                    <div className="flex flex-wrap gap-2">
+                                      {typeEvaluations.map((evaluation, idx) => (
+                                        <span 
+                                          key={evaluation.id || idx}
+                                          className="text-sm px-2 py-1 rounded bg-[#424242]"
+                                          style={{ color: checkEvaluationStatus(evaluation) }}
+                                        >
+                                          {getEvaluationDisplayText(evaluation)}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="text-[#B5B5B5]">N/A</span>
+                            )}
+                          </div>
+                        </div>
+                        
+                        <div className="flex flex-col gap-2 ml-4">
+                          <Button size="sm" variant="outline" className="bg-[#35568C] hover:bg-[#89A9D2]">
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            className="bg-[#358C48] hover:bg-[#4ea045]"
+                            onClick={() => handleEditMaterial(material)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            className="bg-[#8C3535] hover:bg-[#a04545]"
+                            onClick={() => handleDeleteMaterial(material.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
                       </div>
-                      
-                      <div className="flex flex-col gap-2 ml-4">
-                        <Button size="sm" variant="outline" className="bg-[#35568C] hover:bg-[#89A9D2]">
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
-                          className="bg-[#358C48] hover:bg-[#4ea045]"
-                          onClick={() => handleEditMaterial(material)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
-                          className="bg-[#8C3535] hover:bg-[#a04545]"
-                          onClick={() => handleDeleteMaterial(material.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
@@ -286,6 +315,9 @@ export default function Index() {
                           <div>
                             <h3 className="font-bold">{material.name}</h3>
                             <p className="text-[#B5B5B5]">{material.manufacturer}</p>
+                            <p className="text-xs text-[#B5B5B5]">
+                              {material.evaluations.length} evaluation(s)
+                            </p>
                           </div>
                           <div className="flex gap-2">
                             <Button 

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -57,6 +56,7 @@ export function MaterialForm({ material, onClose, onSave }) {
 
   const addEvaluation = (type) => {
     const newEvaluation = {
+      id: Date.now(), // Add unique ID for each evaluation
       type,
       version: '',
       issueDate: '',
@@ -84,8 +84,8 @@ export function MaterialForm({ material, onClose, onSave }) {
   const updateEvaluation = (index, evaluationData) => {
     setFormData(prev => ({
       ...prev,
-      evaluations: prev.evaluations.map((currentEval, i) => 
-        i === index ? evaluationData : currentEval
+      evaluations: prev.evaluations.map((currentEvaluation, i) => 
+        i === index ? evaluationData : currentEvaluation
       )
     }));
   };
@@ -138,10 +138,20 @@ export function MaterialForm({ material, onClose, onSave }) {
           reductionAdditional2Categories: false,
           lcaFile: ''
         };
-      // Add other evaluation types...
       default:
         return baseFields;
     }
+  };
+
+  const getEvaluationDisplayName = (evaluation, index) => {
+    const version = evaluation.version ? ` v${evaluation.version}` : '';
+    const sameTypeCount = formData.evaluations.filter((ev, i) => i <= index && ev.type === evaluation.type).length;
+    
+    if (sameTypeCount > 1 || version) {
+      return `${evaluation.type}${version || ` #${sameTypeCount}`}`;
+    }
+    
+    return evaluation.type;
   };
 
   return (
@@ -220,7 +230,7 @@ export function MaterialForm({ material, onClose, onSave }) {
             />
           </div>
 
-          {/* Evaluations Section */}
+          {/* Enhanced Evaluations Section */}
           <div>
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold">Evaluations</h3>
@@ -238,19 +248,19 @@ export function MaterialForm({ material, onClose, onSave }) {
 
             {formData.evaluations.length > 0 && (
               <Tabs value={activeEvaluationIndex.toString()} onValueChange={(value) => setActiveEvaluationIndex(parseInt(value))}>
-                <TabsList className="bg-[#323232] mb-4">
+                <TabsList className="bg-[#323232] mb-4 flex-wrap">
                   {formData.evaluations.map((evaluation, index) => (
                     <TabsTrigger 
-                      key={index} 
+                      key={evaluation.id || index} 
                       value={index.toString()}
-                      className="data-[state=active]:bg-[#424242] relative"
+                      className="data-[state=active]:bg-[#424242] relative group"
                     >
-                      {evaluation.type}
+                      {getEvaluationDisplayName(evaluation, index)}
                       <Button
                         type="button"
                         size="sm"
                         variant="ghost"
-                        className="ml-2 h-4 w-4 p-0 hover:bg-[#8C3535]"
+                        className="ml-2 h-4 w-4 p-0 hover:bg-[#8C3535] opacity-0 group-hover:opacity-100 transition-opacity"
                         onClick={(e) => {
                           e.stopPropagation();
                           removeEvaluation(index);
@@ -263,7 +273,7 @@ export function MaterialForm({ material, onClose, onSave }) {
                 </TabsList>
 
                 {formData.evaluations.map((evaluation, index) => (
-                  <TabsContent key={index} value={index.toString()}>
+                  <TabsContent key={evaluation.id || index} value={index.toString()}>
                     <EvaluationForm
                       evaluation={evaluation}
                       onChange={(updatedEvaluation) => updateEvaluation(index, updatedEvaluation)}
