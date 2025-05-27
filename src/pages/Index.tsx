@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -75,9 +74,9 @@ export default function Index() {
     }
   };
 
-  const checkEvaluationStatus = (evaluation, projectStart = "2023-01-01", projectEnd = "2027-12-31") => {
-    const evalStart = new Date(evaluation.issueDate);
-    const evalEnd = new Date(evaluation.validTo);
+  const checkEvaluationStatus = (evaluationData, projectStart = "2023-01-01", projectEnd = "2027-12-31") => {
+    const evalStart = new Date(evaluationData.issueDate);
+    const evalEnd = new Date(evaluationData.validTo);
     const projStart = new Date(projectStart);
     const projEnd = new Date(projectEnd);
 
@@ -210,13 +209,13 @@ export default function Index() {
                         <div className="mt-2">
                           {material.evaluations.length > 0 ? (
                             <div className="flex flex-wrap gap-2">
-                              {material.evaluations.map((eval, idx) => (
+                              {material.evaluations.map((evaluationData, idx) => (
                                 <span 
                                   key={idx}
                                   className="text-sm px-2 py-1 rounded"
-                                  style={{ color: checkEvaluationStatus(eval) }}
+                                  style={{ color: checkEvaluationStatus(evaluationData) }}
                                 >
-                                  {eval.type}
+                                  {evaluationData.type}
                                 </span>
                               ))}
                             </div>

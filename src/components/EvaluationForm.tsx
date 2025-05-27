@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,19 +17,19 @@ export function EvaluationForm({ evaluation, onChange }) {
     onChange(updatedEvaluation);
   };
 
-  const calculateConformity = (eval) => {
-    if (!eval.type) return 0;
+  const calculateConformity = (evaluationData) => {
+    if (!evaluationData.type) return 0;
 
     let totalFields = 0;
     let checkedFields = 0;
 
     // Get the fields that count for conformity calculation based on evaluation type
-    const fieldsToCount = getFieldsForConformityCalculation(eval);
+    const fieldsToCount = getFieldsForConformityCalculation(evaluationData);
     
     fieldsToCount.forEach(field => {
-      if (eval[field] !== undefined) {
+      if (evaluationData[field] !== undefined) {
         totalFields++;
-        if (eval[field] === true) {
+        if (evaluationData[field] === true) {
           checkedFields++;
         }
       }
@@ -40,10 +39,10 @@ export function EvaluationForm({ evaluation, onChange }) {
     return Math.floor((checkedFields / totalFields) * 100);
   };
 
-  const getFieldsForConformityCalculation = (eval) => {
+  const getFieldsForConformityCalculation = (evaluationData) => {
     const baseFields = ['geographicArea'];
     
-    switch (eval.type) {
+    switch (evaluationData.type) {
       case 'EPD':
         const epdFields = [
           'epdType', 'documentId', 'epdOwner', 'referencePcr', 
@@ -53,15 +52,15 @@ export function EvaluationForm({ evaluation, onChange }) {
         ];
         
         // Add conditional fields based on EPD type
-        if (eval.epdType !== 'Product specific LCA') {
+        if (evaluationData.epdType !== 'Product specific LCA') {
           epdFields.push('programOperator', 'iso21930Compliance', 'epdVerificationIso14025');
         }
         
-        if (eval.epdType === 'Industry-wide/generic EPD') {
+        if (evaluationData.epdType === 'Industry-wide/generic EPD') {
           epdFields.push('manufacturerRecognized');
         }
         
-        if (eval.epdType !== 'Product specific LCA' && eval.epdType !== 'Product-specific Type III Internal EPD') {
+        if (evaluationData.epdType !== 'Product specific LCA' && evaluationData.epdType !== 'Product-specific Type III Internal EPD') {
           epdFields.push('externalIndependentReviewer');
         }
         
@@ -71,20 +70,20 @@ export function EvaluationForm({ evaluation, onChange }) {
         const lcaFields = ['lcaOptimizationType'];
         
         // Add conditional fields based on LCA type
-        if (eval.lcaOptimizationType === 'LCA impact reduction action plan') {
+        if (evaluationData.lcaOptimizationType === 'LCA impact reduction action plan') {
           lcaFields.push('milestonesForImprovements', 'narrativeActions', 'targetImpactAreas', 
                          'companyExecutiveSignature', 'summaryLargestImpacts');
-        } else if (eval.lcaOptimizationType !== 'LCA impact reduction action plan') {
+        } else if (evaluationData.lcaOptimizationType !== 'LCA impact reduction action plan') {
           lcaFields.push('sameOptimizationPcr', 'optimizationLcaVerification', 
                          'personConductingOptimizationLca', 'optimizationLcaSoftware',
                          'comparativeAnalysis', 'narrativeReductions');
         }
         
-        if (eval.lcaOptimizationType === 'Verified impact reductions in GWP') {
+        if (evaluationData.lcaOptimizationType === 'Verified impact reductions in GWP') {
           lcaFields.push('reductionGwp10');
         }
         
-        if (eval.lcaOptimizationType === 'Verified impact reduction in GWP > 20% + in two other > 5%') {
+        if (evaluationData.lcaOptimizationType === 'Verified impact reduction in GWP > 20% + in two other > 5%') {
           lcaFields.push('reductionGwp20', 'reductionAdditional2Categories');
         }
         

@@ -84,8 +84,8 @@ export function MaterialForm({ material, onClose, onSave }) {
   const updateEvaluation = (index, evaluationData) => {
     setFormData(prev => ({
       ...prev,
-      evaluations: prev.evaluations.map((eval, i) => 
-        i === index ? evaluationData : eval
+      evaluations: prev.evaluations.map((currentEval, i) => 
+        i === index ? evaluationData : currentEval
       )
     }));
   };
