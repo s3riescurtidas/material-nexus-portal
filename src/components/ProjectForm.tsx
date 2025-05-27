@@ -5,61 +5,89 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ProjectUpload } from "@/components/ProjectUpload";
 
-export function ProjectForm({ onClose, onSave }) {
+interface ProjectMaterial {
+  id: string;
+  name: string;
+  manufacturer: string;
+  quantity_m2?: number;
+  quantity_m3?: number;
+  units?: number;
+}
+
+interface ProjectFormProps {
+  onClose: () => void;
+  onSave: (project: any) => void;
+}
+
+export function ProjectForm({ onClose, onSave }: ProjectFormProps) {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
     startDate: '',
     endDate: '',
-    excelFile: null
   });
+  
+  const [projectMaterials, setProjectMaterials] = useState<ProjectMaterial[]>([]);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(formData);
+    const projectData = {
+      ...formData,
+      materials: projectMaterials,
+      id: Date.now()
+    };
+    onSave(projectData);
   };
 
-  const handleInputChange = (field, value) => {
+  const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
     }));
   };
 
+  const handleMaterialsUploaded = (materials: ProjectMaterial[]) => {
+    setProjectMaterials(materials);
+    console.log("Materiais carregados para o projeto:", materials);
+  };
+
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl bg-[#282828] border-[#424242] text-white">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-[#282828] border-[#424242] text-white">
         <DialogHeader>
-          <DialogTitle className="text-xl">Create New Project</DialogTitle>
+          <DialogTitle className="text-xl">Criar Novo Projeto</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <Label htmlFor="name">Project Name</Label>
-            <Input
-              id="name"
-              value={formData.name}
-              onChange={(e) => handleInputChange('name', e.target.value)}
-              className="bg-[#323232] border-[#424242] text-white"
-              required
-            />
-          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="name" className="text-white">Nome do Projeto</Label>
+              <Input
+                id="name"
+                value={formData.name}
+                onChange={(e) => handleInputChange('name', e.target.value)}
+                className="bg-[#323232] border-[#424242] text-white"
+                required
+              />
+            </div>
 
-          <div>
-            <Label htmlFor="description">Description</Label>
-            <Textarea
-              id="description"
-              value={formData.description}
-              onChange={(e) => handleInputChange('description', e.target.value)}
-              className="bg-[#323232] border-[#424242] text-white"
-              rows={3}
-            />
+            <div>
+              <Label htmlFor="description" className="text-white">Descrição</Label>
+              <Textarea
+                id="description"
+                value={formData.description}
+                onChange={(e) => handleInputChange('description', e.target.value)}
+                className="bg-[#323232] border-[#424242] text-white"
+                rows={2}
+              />
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="startDate">Start Date</Label>
+              <Label htmlFor="startDate" className="text-white">Data de Início</Label>
               <Input
                 id="startDate"
                 type="date"
@@ -71,7 +99,7 @@ export function ProjectForm({ onClose, onSave }) {
             </div>
 
             <div>
-              <Label htmlFor="endDate">End Date</Label>
+              <Label htmlFor="endDate" className="text-white">Data de Fim</Label>
               <Input
                 id="endDate"
                 type="date"
@@ -83,23 +111,14 @@ export function ProjectForm({ onClose, onSave }) {
             </div>
           </div>
 
-          <div>
-            <Label htmlFor="excelFile">Excel File (ID, Name, Manufacturer, M², M³, Units)</Label>
-            <Input
-              id="excelFile"
-              type="file"
-              accept=".xlsx,.xls"
-              onChange={(e) => handleInputChange('excelFile', e.target.files?.[0])}
-              className="bg-[#323232] border-[#424242] text-white"
-            />
-          </div>
+          <ProjectUpload onMaterialsUploaded={handleMaterialsUploaded} />
 
           <div className="flex justify-end space-x-2 pt-4 border-t border-[#424242]">
-            <Button type="button" variant="outline" onClick={onClose}>
-              Cancel
+            <Button type="button" variant="outline" onClick={onClose} className="border-[#525252] text-white hover:bg-[#424242]">
+              Cancelar
             </Button>
             <Button type="submit" className="bg-[#358C48] hover:bg-[#4ea045]">
-              Create Project
+              Criar Projeto
             </Button>
           </div>
         </form>

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,6 +31,7 @@ export default function Index() {
   const [showMaterialForm, setShowMaterialForm] = useState(false);
   const [editingMaterial, setEditingMaterial] = useState<Material | null>(null);
   const [showProjectForm, setShowProjectForm] = useState(false);
+  const [projects, setProjects] = useState<any[]>([]);
   
   // Sample data for demonstration
   const [materials, setMaterials] = useState<Material[]>([
@@ -380,16 +380,59 @@ export default function Index() {
           {activeTab === "projects" && (
             <div>
               <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold">Projects</h2>
+                <h2 className="text-2xl font-bold">Projetos</h2>
                 <Button 
                   onClick={() => setShowProjectForm(true)}
                   className="bg-[#358C48] hover:bg-[#4ea045]"
                 >
                   <Plus className="mr-2 h-4 w-4" />
-                  New Project
+                  Novo Projeto
                 </Button>
               </div>
-              <p className="text-[#B5B5B5]">Project management coming soon...</p>
+              
+              {projects.length === 0 ? (
+                <div className="text-center py-12">
+                  <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                  <h3 className="text-lg font-medium text-gray-300 mb-2">Nenhum projeto criado</h3>
+                  <p className="text-gray-400 mb-4">Comece criando seu primeiro projeto</p>
+                  <Button 
+                    onClick={() => setShowProjectForm(true)}
+                    className="bg-[#358C48] hover:bg-[#4ea045]"
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Criar Primeiro Projeto
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {projects.map(project => (
+                    <div key={project.id} className="bg-[#323232] border border-[#424242] rounded-lg p-6">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <h3 className="text-xl font-bold text-white">{project.name}</h3>
+                          <p className="text-gray-300 mt-1">{project.description}</p>
+                          <div className="mt-3 flex gap-4 text-sm text-gray-400">
+                            <span>Início: {new Date(project.startDate).toLocaleDateString()}</span>
+                            <span>Fim: {new Date(project.endDate).toLocaleDateString()}</span>
+                            <span>Materiais: {project.materials?.length || 0}</span>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button size="sm" variant="outline" className="bg-[#35568C] hover:bg-[#89A9D2]">
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button size="sm" variant="outline" className="bg-[#358C48] hover:bg-[#4ea045]">
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button size="sm" variant="outline" className="bg-[#8C3535] hover:bg-[#a04545]">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -420,7 +463,8 @@ export default function Index() {
         <ProjectForm
           onClose={() => setShowProjectForm(false)}
           onSave={(project) => {
-            console.log("New project:", project);
+            console.log("Novo projeto criado:", project);
+            setProjects(prev => [...prev, project]);
             setShowProjectForm(false);
           }}
         />
