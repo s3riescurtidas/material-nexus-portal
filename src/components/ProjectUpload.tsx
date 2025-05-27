@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Upload, FileText, AlertCircle } from "lucide-react";
+import { Upload, FileText, AlertCircle, CheckCircle } from "lucide-react";
 
 interface ProjectMaterial {
   id: string;
@@ -24,12 +24,19 @@ export function ProjectUpload({ onMaterialsUploaded }: ProjectUploadProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uploadedMaterials, setUploadedMaterials] = useState<ProjectMaterial[]>([]);
+  const [processingResults, setProcessingResults] = useState<{
+    total: number;
+    processed: number;
+    errors: string[];
+  } | null>(null);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0];
     if (selectedFile) {
       setFile(selectedFile);
       setError(null);
+      setProcessingResults(null);
+      setUploadedMaterials([]);
     }
   };
 
@@ -38,39 +45,68 @@ export function ProjectUpload({ onMaterialsUploaded }: ProjectUploadProps) {
 
     setIsProcessing(true);
     setError(null);
+    setProcessingResults(null);
 
     try {
       // Simulate Excel file processing
-      // In a real implementation, you would use a library like xlsx to parse the Excel file
       await new Promise(resolve => setTimeout(resolve, 2000));
       
-      // Mock data that would come from Excel parsing
+      // Mock data simulating Excel parsing results
       const mockMaterials: ProjectMaterial[] = [
         {
           id: "MAT001",
           name: "Madeira escura vaselinada",
           manufacturer: "Madeiras & madeira",
-          quantity_m2: 150,
-          quantity_m3: 12,
-          units: 50
+          quantity_m2: 150
         },
         {
           id: "MAT002",
           name: "Betão estrutural",
           manufacturer: "Amorim Cimentos",
-          quantity_m3: 200,
-          units: 100
+          quantity_m3: 200
+        },
+        {
+          id: "MAT003",
+          name: "Tijolo cerâmico",
+          manufacturer: "Cerâmica Nova",
+          units: 500
+        },
+        {
+          id: "MAT004",
+          name: "Vidro temperado",
+          manufacturer: "Vidros Tech",
+          quantity_m2: 75
         }
       ];
 
+      // Simulate processing results
+      const results = {
+        total: mockMaterials.length,
+        processed: mockMaterials.length,
+        errors: []
+      };
+
       setUploadedMaterials(mockMaterials);
+      setProcessingResults(results);
       onMaterialsUploaded(mockMaterials);
       
     } catch (err) {
       setError("Erro ao processar o arquivo Excel. Verifique se o formato está correto.");
+      setProcessingResults({
+        total: 0,
+        processed: 0,
+        errors: ["Formato de arquivo inválido"]
+      });
     } finally {
       setIsProcessing(false);
     }
+  };
+
+  const getQuantityDisplay = (material: ProjectMaterial) => {
+    if (material.quantity_m2) return `${material.quantity_m2} m²`;
+    if (material.quantity_m3) return `${material.quantity_m3} m³`;
+    if (material.units) return `${material.units} unidades`;
+    return "N/A";
   };
 
   return (
@@ -94,6 +130,9 @@ export function ProjectUpload({ onMaterialsUploaded }: ProjectUploadProps) {
               onChange={handleFileSelect}
               className="bg-[#424242] border-[#525252] text-white file:bg-[#525252] file:text-white file:border-0"
             />
+            <p className="text-xs text-gray-400 mt-1">
+              Formato esperado: Colunas ID, Name, Manufacturer, M², M³, Unidades
+            </p>
           </div>
 
           {file && (
@@ -107,6 +146,29 @@ export function ProjectUpload({ onMaterialsUploaded }: ProjectUploadProps) {
             <div className="flex items-center gap-2 text-red-400">
               <AlertCircle className="h-4 w-4" />
               <span className="text-sm">{error}</span>
+            </div>
+          )}
+
+          {processingResults && (
+            <div className="bg-[#424242] rounded p-3">
+              <div className="flex items-center gap-2 text-green-400 mb-2">
+                <CheckCircle className="h-4 w-4" />
+                <span className="text-sm font-medium">Processamento Concluído</span>
+              </div>
+              <div className="text-sm text-gray-300">
+                <p>Total de linhas: {processingResults.total}</p>
+                <p>Materiais processados: {processingResults.processed}</p>
+                {processingResults.errors.length > 0 && (
+                  <div className="mt-2">
+                    <p className="text-red-400">Erros encontrados:</p>
+                    <ul className="list-disc list-inside text-red-300">
+                      {processingResults.errors.map((error, index) => (
+                        <li key={index}>{error}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -126,19 +188,23 @@ export function ProjectUpload({ onMaterialsUploaded }: ProjectUploadProps) {
             <CardTitle className="text-white">Materiais Carregados ({uploadedMaterials.length})</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2">
+            <div className="space-y-3">
               {uploadedMaterials.map((material) => (
-                <div key={material.id} className="bg-[#424242] rounded p-3">
+                <div key={material.id} className="bg-[#424242] rounded p-4 border border-[#525252]">
                   <div className="flex justify-between items-start">
-                    <div>
+                    <div className="flex-1">
                       <h4 className="text-white font-medium">{material.name}</h4>
-                      <p className="text-gray-300 text-sm">ID: {material.id}</p>
-                      <p className="text-gray-300 text-sm">Fabricante: {material.manufacturer}</p>
-                    </div>
-                    <div className="text-right text-sm text-gray-300">
-                      {material.quantity_m2 && <div>M²: {material.quantity_m2}</div>}
-                      {material.quantity_m3 && <div>M³: {material.quantity_m3}</div>}
-                      {material.units && <div>Unidades: {material.units}</div>}
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2 text-sm text-gray-300">
+                        <div>
+                          <span className="font-medium">ID:</span> {material.id}
+                        </div>
+                        <div>
+                          <span className="font-medium">Fabricante:</span> {material.manufacturer}
+                        </div>
+                        <div>
+                          <span className="font-medium">Quantidade:</span> {getQuantityDisplay(material)}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>

@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -7,6 +8,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Search, Edit, Trash2, Eye, Plus, Upload } from "lucide-react";
 import { MaterialForm } from "@/components/MaterialForm";
 import { ProjectForm } from "@/components/ProjectForm";
+import { MaterialDetails } from "@/components/MaterialDetails";
+import { ProjectDetails } from "@/components/ProjectDetails";
 
 interface Evaluation {
   id: number;
@@ -14,6 +17,7 @@ interface Evaluation {
   version: string;
   issueDate: string;
   validTo: string;
+  conformity: number;
 }
 
 interface Material {
@@ -26,12 +30,23 @@ interface Material {
   evaluations: Evaluation[];
 }
 
+interface Project {
+  id: number;
+  name: string;
+  description: string;
+  startDate: string;
+  endDate: string;
+  materials: any[];
+}
+
 export default function Index() {
   const [activeTab, setActiveTab] = useState("search");
   const [showMaterialForm, setShowMaterialForm] = useState(false);
   const [editingMaterial, setEditingMaterial] = useState<Material | null>(null);
   const [showProjectForm, setShowProjectForm] = useState(false);
-  const [projects, setProjects] = useState<any[]>([]);
+  const [selectedMaterial, setSelectedMaterial] = useState<Material | null>(null);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [projects, setProjects] = useState<Project[]>([]);
   
   // Sample data for demonstration
   const [materials, setMaterials] = useState<Material[]>([
@@ -43,9 +58,21 @@ export default function Index() {
       subcategory: "Treated Wood",
       description: "High quality treated wood",
       evaluations: [
-        { id: 1, type: "EPD", version: "1.0", issueDate: "2021-01-01", validTo: "2026-12-31" },
-        { id: 2, type: "EPD", version: "2.0", issueDate: "2022-06-01", validTo: "2027-05-31" },
-        { id: 3, type: "LCA", version: "1.0", issueDate: "2021-03-01", validTo: "2026-02-28" }
+        { id: 1, type: "EPD", version: "1.0", issueDate: "2021-01-01", validTo: "2026-12-31", conformity: 94 },
+        { id: 2, type: "EPD", version: "2.0", issueDate: "2022-06-01", validTo: "2027-05-31", conformity: 87 },
+        { id: 3, type: "LCA", version: "1.0", issueDate: "2021-03-01", validTo: "2026-02-28", conformity: 78 }
+      ]
+    },
+    {
+      id: 2,
+      name: "Betão estrutural",
+      manufacturer: "Amorim Cimentos",
+      category: "Concrete",
+      subcategory: "Standard Concrete",
+      description: "High performance structural concrete",
+      evaluations: [
+        { id: 4, type: "EPD", version: "1.0", issueDate: "2020-01-01", validTo: "2025-12-31", conformity: 92 },
+        { id: 5, type: "C2C", version: "1.0", issueDate: "2022-01-01", validTo: "2027-12-31", conformity: 85 }
       ]
     }
   ]);
@@ -77,6 +104,70 @@ export default function Index() {
     "Glass": ["Standard Glass", "Tempered Glass", "Laminated Glass"]
   };
 
+  // Normalize text for search (remove accents and convert to lowercase)
+  const normalizeText = (text: string) => {
+    return text
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+  };
+
+  // Filter materials based on search and filters
+  const filteredMaterials = useMemo(() => {
+    return materials.filter(material => {
+      // Search term filter
+      if (searchTerm) {
+        const normalizedSearch = normalizeText(searchTerm);
+        const materialName = normalizeText(material.name);
+        if (!materialName.includes(normalizedSearch)) {
+          return false;
+        }
+      }
+
+      // Manufacturer filter
+      if (selectedManufacturer !== "all" && material.manufacturer !== selectedManufacturer) {
+        return false;
+      }
+
+      // Category filter
+      if (selectedCategory !== "all" && material.category !== selectedCategory) {
+        return false;
+      }
+
+      // Subcategory filter
+      if (selectedSubcategory !== "all" && material.subcategory !== selectedSubcategory) {
+        return false;
+      }
+
+      // Certification filters
+      const activeCertifications = Object.entries(certificationFilters)
+        .filter(([_, active]) => active)
+        .map(([cert, _]) => cert);
+
+      if (activeCertifications.length > 0) {
+        const materialCertifications = material.evaluations.map(eval => {
+          if (eval.type === "Manufacturer Inventory") return "MI";
+          if (eval.type === "REACH Optimization") return "REACH";
+          if (eval.type === "Health Product Declaration") return "HPD";
+          if (eval.type === "Product Circularity") return "PC";
+          if (eval.type === "Global Green Tag Product Health Declaration") return "GGTPHD";
+          if (eval.type === "FSC / PEFC") return "FSC_PEFC";
+          return eval.type;
+        });
+
+        const hasRequiredCertifications = activeCertifications.some(cert => 
+          materialCertifications.includes(cert)
+        );
+
+        if (!hasRequiredCertifications) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [materials, searchTerm, selectedManufacturer, selectedCategory, selectedSubcategory, certificationFilters]);
+
   const handleCertificationFilter = (certification: string, checked: boolean) => {
     setCertificationFilters(prev => ({
       ...prev,
@@ -92,6 +183,20 @@ export default function Index() {
   const handleDeleteMaterial = (materialId: number) => {
     if (confirm("Tem certeza que deseja excluir este material?")) {
       setMaterials(prev => prev.filter(m => m.id !== materialId));
+    }
+  };
+
+  const handleViewMaterial = (material: Material) => {
+    setSelectedMaterial(material);
+  };
+
+  const handleViewProject = (project: Project) => {
+    setSelectedProject(project);
+  };
+
+  const handleDeleteProject = (projectId: number) => {
+    if (confirm("Tem certeza que deseja excluir este projeto?")) {
+      setProjects(prev => prev.filter(p => p.id !== projectId));
     }
   };
 
@@ -127,6 +232,51 @@ export default function Index() {
     });
     return grouped;
   };
+
+  const getEvaluationAbbreviation = (type: string) => {
+    const abbreviations: Record<string, string> = {
+      "EPD": "EPD",
+      "LCA": "LCA", 
+      "Manufacturer Inventory": "MI",
+      "REACH Optimization": "REACH",
+      "Health Product Declaration": "HPD",
+      "C2C": "C2C",
+      "Declare": "Declare",
+      "Product Circularity": "PC",
+      "Global Green Tag Product Health Declaration": "GGTPHD",
+      "FSC / PEFC": "FSC/PEFC",
+      "ECOLABEL": "ECOLABEL"
+    };
+    return abbreviations[type] || type;
+  };
+
+  if (selectedMaterial) {
+    return (
+      <MaterialDetails 
+        material={selectedMaterial} 
+        onClose={() => setSelectedMaterial(null)}
+        onEdit={() => {
+          setEditingMaterial(selectedMaterial);
+          setSelectedMaterial(null);
+          setShowMaterialForm(true);
+        }}
+        onDelete={() => {
+          handleDeleteMaterial(selectedMaterial.id);
+          setSelectedMaterial(null);
+        }}
+      />
+    );
+  }
+
+  if (selectedProject) {
+    return (
+      <ProjectDetails 
+        project={selectedProject} 
+        onClose={() => setSelectedProject(null)}
+        materials={materials}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#282828] text-white">
@@ -192,7 +342,10 @@ export default function Index() {
                   </SelectContent>
                 </Select>
                 
-                <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                <Select value={selectedCategory} onValueChange={(value) => {
+                  setSelectedCategory(value);
+                  setSelectedSubcategory("all");
+                }}>
                   <SelectTrigger className="bg-[#323232] border-[#424242] text-white">
                     <SelectValue placeholder="Category" />
                   </SelectTrigger>
@@ -234,13 +387,17 @@ export default function Index() {
                 </div>
               </div>
 
-              {/* Enhanced Materials List */}
+              {/* Materials List */}
               <div className="space-y-4">
-                {materials.map(material => {
+                {filteredMaterials.map(material => {
                   const groupedEvaluations = groupEvaluationsByType(material.evaluations);
                   
                   return (
-                    <div key={material.id} className="bg-[#323232] border border-[#424242] rounded-lg p-4">
+                    <div 
+                      key={material.id} 
+                      className="bg-[#323232] border border-[#424242] rounded-lg p-4 cursor-pointer hover:bg-[#424242] transition-colors"
+                      onClick={() => handleViewMaterial(material)}
+                    >
                       <div className="flex justify-between items-start">
                         <div className="flex-1">
                           <h3 className="text-xl font-bold">{material.name}</h3>
@@ -249,39 +406,48 @@ export default function Index() {
                           <p className="text-[#B5B5B5]">Description: {material.description || "N/A"}</p>
                           <div className="mt-2">
                             {material.evaluations.length > 0 ? (
-                              <div className="space-y-1">
+                              <div className="flex flex-wrap gap-2">
+                                <span className="text-sm text-[#B5B5B5]">Evaluations:</span>
                                 {Object.entries(groupedEvaluations).map(([type, typeEvaluations]) => (
-                                  <div key={type} className="flex flex-wrap gap-2">
-                                    <span className="text-sm font-medium text-[#B5B5B5] min-w-[50px]">{type}:</span>
-                                    <div className="flex flex-wrap gap-2">
-                                      {typeEvaluations.map((evaluation, idx) => (
-                                        <span 
-                                          key={evaluation.id || idx}
-                                          className="text-sm px-2 py-1 rounded bg-[#424242]"
-                                          style={{ color: checkEvaluationStatus(evaluation) }}
-                                        >
-                                          {getEvaluationDisplayText(evaluation)}
-                                        </span>
-                                      ))}
-                                    </div>
+                                  <div key={type} className="flex gap-1">
+                                    {typeEvaluations.map((evaluation, idx) => (
+                                      <span 
+                                        key={evaluation.id || idx}
+                                        className="text-sm px-2 py-1 rounded bg-[#35568C] text-white"
+                                      >
+                                        {getEvaluationAbbreviation(type)}
+                                        {evaluation.version && ` v${evaluation.version}`}
+                                      </span>
+                                    ))}
                                   </div>
                                 ))}
                               </div>
                             ) : (
-                              <span className="text-[#B5B5B5]">N/A</span>
+                              <span className="text-[#B5B5B5]">Evaluations: N/A</span>
                             )}
                           </div>
                         </div>
                         
                         <div className="flex flex-col gap-2 ml-4">
-                          <Button size="sm" variant="outline" className="bg-[#35568C] hover:bg-[#89A9D2]">
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            className="bg-[#35568C] hover:bg-[#89A9D2]"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleViewMaterial(material);
+                            }}
+                          >
                             <Eye className="h-4 w-4" />
                           </Button>
                           <Button 
                             size="sm" 
                             variant="outline" 
                             className="bg-[#358C48] hover:bg-[#4ea045]"
-                            onClick={() => handleEditMaterial(material)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEditMaterial(material);
+                            }}
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
@@ -289,7 +455,10 @@ export default function Index() {
                             size="sm" 
                             variant="outline" 
                             className="bg-[#8C3535] hover:bg-[#a04545]"
-                            onClick={() => handleDeleteMaterial(material.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteMaterial(material.id);
+                            }}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -298,6 +467,12 @@ export default function Index() {
                     </div>
                   );
                 })}
+                
+                {filteredMaterials.length === 0 && (
+                  <div className="text-center py-12">
+                    <p className="text-gray-400">Nenhum material encontrado com os filtros selecionados.</p>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -328,7 +503,9 @@ export default function Index() {
                 
                 <TabsContent value="materials" className="mt-4">
                   <div className="space-y-4">
-                    {materials.map(material => (
+                    {materials
+                      .sort((a, b) => a.name.localeCompare(b.name))
+                      .map(material => (
                       <div key={material.id} className="bg-[#323232] border border-[#424242] rounded-lg p-4">
                         <div className="flex justify-between items-center">
                           <div>
@@ -363,15 +540,70 @@ export default function Index() {
                 </TabsContent>
                 
                 <TabsContent value="manufacturers" className="mt-4">
-                  <p className="text-[#B5B5B5]">Manufacturer management coming soon...</p>
+                  <div className="space-y-4">
+                    {manufacturers.sort().map(manufacturer => (
+                      <div key={manufacturer} className="bg-[#323232] border border-[#424242] rounded-lg p-4">
+                        <div className="flex justify-between items-center">
+                          <h3 className="font-bold">{manufacturer}</h3>
+                          <div className="flex gap-2">
+                            <Button size="sm" variant="outline" className="bg-[#358C48] hover:bg-[#4ea045]">
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button size="sm" variant="outline" className="bg-[#8C3535] hover:bg-[#a04545]">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </TabsContent>
                 
                 <TabsContent value="categories" className="mt-4">
-                  <p className="text-[#B5B5B5]">Category management coming soon...</p>
+                  <div className="space-y-4">
+                    {categories.sort().map(category => (
+                      <div key={category} className="bg-[#323232] border border-[#424242] rounded-lg p-4">
+                        <div className="flex justify-between items-center">
+                          <h3 className="font-bold">{category}</h3>
+                          <div className="flex gap-2">
+                            <Button size="sm" variant="outline" className="bg-[#358C48] hover:bg-[#4ea045]">
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button size="sm" variant="outline" className="bg-[#8C3535] hover:bg-[#a04545]">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </TabsContent>
                 
                 <TabsContent value="subcategories" className="mt-4">
-                  <p className="text-[#B5B5B5]">Subcategory management coming soon...</p>
+                  <div className="space-y-4">
+                    {Object.entries(subcategories)
+                      .sort(([a], [b]) => a.localeCompare(b))
+                      .map(([category, subs]) => (
+                      <div key={category} className="bg-[#323232] border border-[#424242] rounded-lg p-4">
+                        <h3 className="font-bold mb-2">{category}</h3>
+                        <div className="space-y-2">
+                          {subs.sort().map(sub => (
+                            <div key={sub} className="flex justify-between items-center bg-[#424242] p-2 rounded">
+                              <span>{sub}</span>
+                              <div className="flex gap-2">
+                                <Button size="sm" variant="outline" className="bg-[#358C48] hover:bg-[#4ea045]">
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button size="sm" variant="outline" className="bg-[#8C3535] hover:bg-[#a04545]">
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </TabsContent>
               </Tabs>
             </div>
@@ -406,7 +638,11 @@ export default function Index() {
               ) : (
                 <div className="space-y-4">
                   {projects.map(project => (
-                    <div key={project.id} className="bg-[#323232] border border-[#424242] rounded-lg p-6">
+                    <div 
+                      key={project.id} 
+                      className="bg-[#323232] border border-[#424242] rounded-lg p-6 cursor-pointer hover:bg-[#424242] transition-colors"
+                      onClick={() => handleViewProject(project)}
+                    >
                       <div className="flex justify-between items-start">
                         <div className="flex-1">
                           <h3 className="text-xl font-bold text-white">{project.name}</h3>
@@ -418,13 +654,29 @@ export default function Index() {
                           </div>
                         </div>
                         <div className="flex gap-2">
-                          <Button size="sm" variant="outline" className="bg-[#35568C] hover:bg-[#89A9D2]">
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            className="bg-[#35568C] hover:bg-[#89A9D2]"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleViewProject(project);
+                            }}
+                          >
                             <Eye className="h-4 w-4" />
                           </Button>
                           <Button size="sm" variant="outline" className="bg-[#358C48] hover:bg-[#4ea045]">
                             <Edit className="h-4 w-4" />
                           </Button>
-                          <Button size="sm" variant="outline" className="bg-[#8C3535] hover:bg-[#a04545]">
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            className="bg-[#8C3535] hover:bg-[#a04545]"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteProject(project.id);
+                            }}
+                          >
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
