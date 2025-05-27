@@ -1,482 +1,445 @@
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Button } from "@/components/ui/button";
-import { Save } from "lucide-react";
 
 export function EvaluationForm({ evaluation, onChange }) {
-  const [formData, setFormData] = useState(evaluation);
-  const [enabledFields, setEnabledFields] = useState({});
-
-  useEffect(() => {
-    setFormData(evaluation);
-    updateEnabledFields(evaluation.type, evaluation);
-  }, [evaluation]);
-
-  const updateEnabledFields = (evaluationType, evalData) => {
-    let enabled = {};
+  const handleInputChange = (field, value) => {
+    const updatedEvaluation = { ...evaluation, [field]: value };
     
-    switch (evaluationType) {
-      case 'EPD':
-        const epdType = evalData.epdType || '';
-        enabled = {
-          programOperator: epdType !== 'Product specific LCA',
-          manufacturerRecognized: epdType === 'Industry-wide/generic EPD',
-          iso21930Compliance: epdType !== 'Product specific LCA',
-          epdVerificationIso14025: epdType !== 'Product specific LCA',
-          externalIndependentReviewer: epdType !== 'Product specific LCA' && epdType !== 'Product-specific Type III Internal EPD'
-        };
-        break;
-        
-      case 'LCA':
-        const lcaType = evalData.lcaOptimizationType || '';
-        enabled = {
-          milestonesForImprovements: lcaType === 'LCA impact reduction action plan',
-          narrativeActions: lcaType === 'LCA impact reduction action plan',
-          targetImpactAreas: lcaType === 'LCA impact reduction action plan',
-          companyExecutiveSignature: lcaType === 'LCA impact reduction action plan',
-          summaryLargestImpacts: lcaType === 'LCA impact reduction action plan',
-          sameOptimizationPcr: lcaType !== 'LCA impact reduction action plan',
-          optimizationLcaVerification: lcaType !== 'LCA impact reduction action plan',
-          personConductingOptimizationLca: lcaType !== 'LCA impact reduction action plan',
-          optimizationLcaSoftware: lcaType !== 'LCA impact reduction action plan',
-          comparativeAnalysis: lcaType !== 'LCA impact reduction action plan',
-          narrativeReductions: lcaType !== 'LCA impact reduction action plan',
-          reductionGwp10: lcaType === 'Verified impact reductions in GWP',
-          reductionGwp20: lcaType === 'Verified impact reduction in GWP > 20% + in two other > 5%',
-          reductionAdditional2Categories: lcaType === 'Verified impact reduction in GWP > 20% + in two other > 5%'
-        };
-        break;
-        
-      case 'Manufacturer Inventory':
-        const miType = evalData.manufacturerInventoryType || '';
-        enabled = {
-          inventoryAssessed1000ppm: ['Self-declared manufacturer Inventory', 'Verified manufacturer Inventory'].includes(miType),
-          inventoryAssessed100ppm: ['Verified advanced manufacturer Inventory', 'Verified ingredient optimized manufacturer Inventory'].includes(miType),
-          noGreenScreenLt1: miType === 'Verified advanced manufacturer Inventory',
-          assessed95wt: miType === 'Verified ingredient optimized manufacturer Inventory',
-          remaining5percent: miType === 'Verified ingredient optimized manufacturer Inventory',
-          externalIndependentReviewer: miType !== 'Self-declared manufacturer Inventory'
-        };
-        break;
-        
-      case 'REACH Optimization':
-        const reachType = evalData.reportType || '';
-        enabled = {
-          authorIdentification: reachType !== "Manufacturer's report"
-        };
-        break;
-        
-      case 'Health Product Declaration':
-        const hpdType = evalData.hpdType || '';
-        enabled = {
-          inventoryAssessed1000ppm: ['Published HPD', 'Verified HPD'].includes(hpdType),
-          inventoryAssessed100ppm: ['Verified advanced HPD', 'Verified ingredient optimized HPD'].includes(hpdType),
-          noGreenScreenLt1: hpdType === 'Verified advanced HPD',
-          assessed95wt: hpdType === 'Verified ingredient optimized HPD',
-          remaining5percent: hpdType === 'Verified ingredient optimized HPD',
-          externalIndependentReviewer: hpdType !== 'Published HPD'
-        };
-        break;
-        
-      case 'Declare':
-        const declareType = evalData.declareType || '';
-        enabled = {
-          externalIndependentReviewer: ['Verified Declared', 'Verified LBC Compliant', 'Verified Red List Free'].includes(declareType)
-        };
-        break;
-        
-      default:
-        enabled = {};
+    // Auto-calculate conformity when boolean fields change
+    if (typeof value === 'boolean') {
+      updatedEvaluation.conformity = calculateConformity(updatedEvaluation);
     }
     
-    setEnabledFields(enabled);
+    onChange(updatedEvaluation);
   };
 
-  const handleFieldChange = (field, value) => {
-    const updatedData = { ...formData, [field]: value };
-    setFormData(updatedData);
-    
-    // Update enabled fields if a type field changed
-    if (field.includes('Type') || field.includes('type')) {
-      updateEnabledFields(evaluation.type, updatedData);
-    }
-    
-    onChange(updatedData);
-  };
+  const calculateConformity = (eval) => {
+    if (!eval.type) return 0;
 
-  const calculateConformity = () => {
     let totalFields = 0;
     let checkedFields = 0;
+
+    // Get the fields that count for conformity calculation based on evaluation type
+    const fieldsToCount = getFieldsForConformityCalculation(eval);
     
-    // Count fields that contribute to conformity score (marked with 1# in requirements)
-    const conformityFields = getConformityFields(evaluation.type);
-    
-    conformityFields.forEach(field => {
-      if (enabledFields[field] !== false) { // Only count if field is enabled
+    fieldsToCount.forEach(field => {
+      if (eval[field] !== undefined) {
         totalFields++;
-        if (formData[field] === true || (typeof formData[field] === 'string' && formData[field] !== '' && formData[field] !== 'Not compliant')) {
+        if (eval[field] === true) {
           checkedFields++;
         }
       }
     });
-    
+
     if (totalFields === 0) return 0;
-    
-    const percentage = (checkedFields / totalFields) * 100;
-    const conformity = Math.floor(percentage); // Always round down
-    
-    handleFieldChange('conformity', conformity);
+    return Math.floor((checkedFields / totalFields) * 100);
   };
 
-  const getConformityFields = (evaluationType) => {
-    switch (evaluationType) {
+  const getFieldsForConformityCalculation = (eval) => {
+    const baseFields = ['geographicArea'];
+    
+    switch (eval.type) {
       case 'EPD':
-        return [
-          'epdType', 'geographicArea', 'documentId', 'epdOwner', 'programOperator',
-          'referencePcr', 'manufacturerRecognized', 'includeFunctionalUnit',
-          'manufacturingLocations', 'minimumCradleToGate', 'allSixImpactCategories',
-          'lcaVerificationIso14044', 'personConductingLca', 'lcaSoftware',
-          'iso21930Compliance', 'epdVerificationIso14025', 'externalIndependentReviewer'
+        const epdFields = [
+          'epdType', 'documentId', 'epdOwner', 'referencePcr', 
+          'includeFunctionalUnit', 'manufacturingLocations', 'minimumCradleToGate',
+          'allSixImpactCategories', 'lcaVerificationIso14044', 'personConductingLca',
+          'lcaSoftware'
         ];
+        
+        // Add conditional fields based on EPD type
+        if (eval.epdType !== 'Product specific LCA') {
+          epdFields.push('programOperator', 'iso21930Compliance', 'epdVerificationIso14025');
+        }
+        
+        if (eval.epdType === 'Industry-wide/generic EPD') {
+          epdFields.push('manufacturerRecognized');
+        }
+        
+        if (eval.epdType !== 'Product specific LCA' && eval.epdType !== 'Product-specific Type III Internal EPD') {
+          epdFields.push('externalIndependentReviewer');
+        }
+        
+        return [...baseFields, ...epdFields];
+        
       case 'LCA':
-        return [
-          'lcaOptimizationType', 'geographicArea', 'milestonesForImprovements',
-          'narrativeActions', 'targetImpactAreas', 'companyExecutiveSignature',
-          'summaryLargestImpacts', 'sameOptimizationPcr', 'optimizationLcaVerification',
-          'personConductingOptimizationLca', 'optimizationLcaSoftware', 'comparativeAnalysis',
-          'narrativeReductions', 'reductionGwp10', 'reductionGwp20', 'reductionAdditional2Categories'
-        ];
-      // Add other evaluation types...
+        const lcaFields = ['lcaOptimizationType'];
+        
+        // Add conditional fields based on LCA type
+        if (eval.lcaOptimizationType === 'LCA impact reduction action plan') {
+          lcaFields.push('milestonesForImprovements', 'narrativeActions', 'targetImpactAreas', 
+                         'companyExecutiveSignature', 'summaryLargestImpacts');
+        } else if (eval.lcaOptimizationType !== 'LCA impact reduction action plan') {
+          lcaFields.push('sameOptimizationPcr', 'optimizationLcaVerification', 
+                         'personConductingOptimizationLca', 'optimizationLcaSoftware',
+                         'comparativeAnalysis', 'narrativeReductions');
+        }
+        
+        if (eval.lcaOptimizationType === 'Verified impact reductions in GWP') {
+          lcaFields.push('reductionGwp10');
+        }
+        
+        if (eval.lcaOptimizationType === 'Verified impact reduction in GWP > 20% + in two other > 5%') {
+          lcaFields.push('reductionGwp20', 'reductionAdditional2Categories');
+        }
+        
+        return [...baseFields, ...lcaFields];
+        
       default:
-        return [];
+        return baseFields;
     }
   };
 
-  const renderEPDFields = () => (
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <Label>Version</Label>
-          <Input
-            value={formData.version || ''}
-            onChange={(e) => handleFieldChange('version', e.target.value)}
-            className="bg-[#323232] border-[#424242] text-white"
-          />
-        </div>
-        
-        <div>
-          <Label>EPD Type *</Label>
-          <Select value={formData.epdType || ''} onValueChange={(value) => handleFieldChange('epdType', value)}>
-            <SelectTrigger className="bg-[#323232] border-[#424242] text-white">
-              <SelectValue placeholder="Select EPD Type" />
-            </SelectTrigger>
-            <SelectContent className="bg-[#323232] border-[#424242]">
-              <SelectItem value="Not compliant">Not compliant</SelectItem>
-              <SelectItem value="Product specific LCA">Product specific LCA</SelectItem>
-              <SelectItem value="Industry-wide/generic EPD">Industry-wide/generic EPD</SelectItem>
-              <SelectItem value="Product-specific Type III Internal EPD">Product-specific Type III Internal EPD</SelectItem>
-              <SelectItem value="Product Specific Type III External EPD">Product Specific Type III External EPD</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        
-        <div>
-          <Label>Geographic Area *</Label>
-          <Select value={formData.geographicArea || 'Global'} onValueChange={(value) => handleFieldChange('geographicArea', value)}>
-            <SelectTrigger className="bg-[#323232] border-[#424242] text-white">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="bg-[#323232] border-[#424242]">
-              <SelectItem value="Global">Global</SelectItem>
-              <SelectItem value="Western">Western</SelectItem>
-              <SelectItem value="Eastern">Eastern</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        
-        <div>
-          <Label>Conformity Content</Label>
-          <Input
-            type="number"
-            value={formData.conformity || 0}
-            onChange={(e) => handleFieldChange('conformity', parseInt(e.target.value) || 0)}
-            className="bg-[#323232] border-[#424242] text-white"
-            readOnly
-          />
-        </div>
-        
-        <div>
-          <Label>Issue Date</Label>
-          <Input
-            type="date"
-            value={formData.issueDate || ''}
-            onChange={(e) => handleFieldChange('issueDate', e.target.value)}
-            className="bg-[#323232] border-[#424242] text-white"
-          />
-        </div>
-        
-        <div>
-          <Label>Valid To</Label>
-          <Input
-            type="date"
-            value={formData.validTo || ''}
-            onChange={(e) => handleFieldChange('validTo', e.target.value)}
-            className="bg-[#323232] border-[#424242] text-white"
-          />
-        </div>
-        
-        <div>
-          <Label>EPD File</Label>
-          <Input
-            type="file"
-            accept=".pdf,.docx,.doc"
-            onChange={(e) => handleFieldChange('epdFile', e.target.files?.[0]?.name || '')}
-            className="bg-[#323232] border-[#424242] text-white"
-          />
-        </div>
-      </div>
-      
-      <div className="space-y-4">
-        <h4 className="font-semibold text-lg">Conformity Fields</h4>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {[
-            { field: 'documentId', label: 'Document ID' },
-            { field: 'epdOwner', label: 'EPD owner' },
-            { field: 'programOperator', label: 'Program operator', enabled: enabledFields.programOperator !== false },
-            { field: 'referencePcr', label: 'Reference PCR' },
-            { field: 'manufacturerRecognized', label: 'Manufacturer recognized as participant', enabled: enabledFields.manufacturerRecognized !== false },
-            { field: 'includeFunctionalUnit', label: 'Include functional unit' },
-            { field: 'manufacturingLocations', label: 'Manufacturing location(s) indicated' },
-            { field: 'minimumCradleToGate', label: 'Minimum cradle to gate scope' },
-            { field: 'allSixImpactCategories', label: 'All 6 impact categories listed' },
-            { field: 'lcaVerificationIso14044', label: 'LCA verification according to ISO 14044' },
-            { field: 'personConductingLca', label: 'Identification of the person conducting the LCA' },
-            { field: 'lcaSoftware', label: 'LCA software used' },
-            { field: 'iso21930Compliance', label: 'ISO 21930 or EN 15804 compliance', enabled: enabledFields.iso21930Compliance !== false },
-            { field: 'epdVerificationIso14025', label: 'EPD verification according to ISO 14025', enabled: enabledFields.epdVerificationIso14025 !== false },
-            { field: 'externalIndependentReviewer', label: 'Identification of the external independent reviewer', enabled: enabledFields.externalIndependentReviewer !== false }
-          ].map(({ field, label, enabled = true }) => (
-            <div key={field} className={`flex items-center space-x-2 ${!enabled ? 'opacity-50' : ''}`}>
-              <Checkbox
-                id={field}
-                checked={formData[field] || false}
-                onCheckedChange={(checked) => handleFieldChange(field, checked)}
-                disabled={!enabled}
-              />
-              <Label htmlFor={field} className="text-sm">{label}</Label>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderLCAFields = () => (
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <Label>Version</Label>
-          <Input
-            value={formData.version || ''}
-            onChange={(e) => handleFieldChange('version', e.target.value)}
-            className="bg-[#323232] border-[#424242] text-white"
-          />
-        </div>
-        
-        <div>
-          <Label>LCA Optimization Type *</Label>
-          <Select value={formData.lcaOptimizationType || ''} onValueChange={(value) => handleFieldChange('lcaOptimizationType', value)}>
-            <SelectTrigger className="bg-[#323232] border-[#424242] text-white">
-              <SelectValue placeholder="Select LCA Type" />
-            </SelectTrigger>
-            <SelectContent className="bg-[#323232] border-[#424242]">
-              <SelectItem value="Not compliant">Not compliant</SelectItem>
-              <SelectItem value="LCA impact reduction action plan">LCA impact reduction action plan</SelectItem>
-              <SelectItem value="Verified impact reductions in GWP">Verified impact reductions in GWP</SelectItem>
-              <SelectItem value="Verified impact reduction in GWP > 10%">Verified impact reduction in GWP > 10%</SelectItem>
-              <SelectItem value="Verified impact reduction in GWP > 20% + in two other > 5%">Verified impact reduction in GWP > 20% + in two other > 5%</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        
-        <div>
-          <Label>Geographic Area *</Label>
-          <Select value={formData.geographicArea || 'Global'} onValueChange={(value) => handleFieldChange('geographicArea', value)}>
-            <SelectTrigger className="bg-[#323232] border-[#424242] text-white">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="bg-[#323232] border-[#424242]">
-              <SelectItem value="Global">Global</SelectItem>
-              <SelectItem value="Western">Western</SelectItem>
-              <SelectItem value="Eastern">Eastern</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        
-        <div>
-          <Label>Conformity Content</Label>
-          <Input
-            type="number"
-            value={formData.conformity || 0}
-            onChange={(e) => handleFieldChange('conformity', parseInt(e.target.value) || 0)}
-            className="bg-[#323232] border-[#424242] text-white"
-            readOnly
-          />
-        </div>
-        
-        <div>
-          <Label>Issue Date</Label>
-          <Input
-            type="date"
-            value={formData.issueDate || ''}
-            onChange={(e) => handleFieldChange('issueDate', e.target.value)}
-            className="bg-[#323232] border-[#424242] text-white"
-          />
-        </div>
-        
-        <div>
-          <Label>Valid To</Label>
-          <Input
-            type="date"
-            value={formData.validTo || ''}
-            onChange={(e) => handleFieldChange('validTo', e.target.value)}
-            className="bg-[#323232] border-[#424242] text-white"
-          />
-        </div>
-        
-        <div>
-          <Label>LCA File</Label>
-          <Input
-            type="file"
-            accept=".pdf,.docx,.doc"
-            onChange={(e) => handleFieldChange('lcaFile', e.target.files?.[0]?.name || '')}
-            className="bg-[#323232] border-[#424242] text-white"
-          />
-        </div>
-      </div>
-      
-      <div className="space-y-4">
-        <h4 className="font-semibold text-lg">Conformity Fields</h4>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {[
-            { field: 'milestonesForImprovements', label: 'Milestones for improvements with timeline (not more than 4 years)', enabled: enabledFields.milestonesForImprovements !== false },
-            { field: 'narrativeActions', label: 'Narrative with actions to be pursued including GWP addressed', enabled: enabledFields.narrativeActions !== false },
-            { field: 'targetImpactAreas', label: 'Description of target impact areas', enabled: enabledFields.targetImpactAreas !== false },
-            { field: 'companyExecutiveSignature', label: 'Signature of company executive', enabled: enabledFields.companyExecutiveSignature !== false },
-            { field: 'summaryLargestImpacts', label: 'Table/Summary of largest life cycle impacts', enabled: enabledFields.summaryLargestImpacts !== false },
-            { field: 'sameOptimizationPcr', label: 'Same optimization PCR as reference PCR', enabled: enabledFields.sameOptimizationPcr !== false },
-            { field: 'optimizationLcaVerification', label: 'Optimization LCA verification according to ISO 14044', enabled: enabledFields.optimizationLcaVerification !== false },
-            { field: 'personConductingOptimizationLca', label: 'Identification of the person conducting the optimization LCA', enabled: enabledFields.personConductingOptimizationLca !== false },
-            { field: 'optimizationLcaSoftware', label: 'Optimization LCA software used', enabled: enabledFields.optimizationLcaSoftware !== false },
-            { field: 'comparativeAnalysis', label: 'Comparative analysis showing impact reduction in GWP', enabled: enabledFields.comparativeAnalysis !== false },
-            { field: 'narrativeReductions', label: 'Narrative describing how reductions in impacts were achieved', enabled: enabledFields.narrativeReductions !== false },
-            { field: 'reductionGwp10', label: 'Reduction in GWP against the baseline 10%', enabled: enabledFields.reductionGwp10 !== false },
-            { field: 'reductionGwp20', label: 'Reduction in GWP against the baseline 20%', enabled: enabledFields.reductionGwp20 !== false },
-            { field: 'reductionAdditional2Categories', label: 'Reduction in additional 2 impact categories against the baseline >5%', enabled: enabledFields.reductionAdditional2Categories !== false }
-          ].map(({ field, label, enabled = true }) => (
-            <div key={field} className={`flex items-center space-x-2 ${!enabled ? 'opacity-50' : ''}`}>
-              <Checkbox
-                id={field}
-                checked={formData[field] || false}
-                onCheckedChange={(checked) => handleFieldChange(field, checked)}
-                disabled={!enabled}
-              />
-              <Label htmlFor={field} className="text-sm">{label}</Label>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderGenericFields = () => (
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <Label>Version</Label>
-          <Input
-            value={formData.version || ''}
-            onChange={(e) => handleFieldChange('version', e.target.value)}
-            className="bg-[#323232] border-[#424242] text-white"
-          />
-        </div>
-        
-        <div>
-          <Label>Geographic Area</Label>
-          <Select value={formData.geographicArea || 'Global'} onValueChange={(value) => handleFieldChange('geographicArea', value)}>
-            <SelectTrigger className="bg-[#323232] border-[#424242] text-white">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="bg-[#323232] border-[#424242]">
-              <SelectItem value="Global">Global</SelectItem>
-              <SelectItem value="Western">Western</SelectItem>
-              <SelectItem value="Eastern">Eastern</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        
-        <div>
-          <Label>Conformity Content</Label>
-          <Input
-            type="number"
-            value={formData.conformity || 0}
-            onChange={(e) => handleFieldChange('conformity', parseInt(e.target.value) || 0)}
-            className="bg-[#323232] border-[#424242] text-white"
-          />
-        </div>
-        
-        <div>
-          <Label>Issue Date</Label>
-          <Input
-            type="date"
-            value={formData.issueDate || ''}
-            onChange={(e) => handleFieldChange('issueDate', e.target.value)}
-            className="bg-[#323232] border-[#424242] text-white"
-          />
-        </div>
-        
-        <div>
-          <Label>Valid To</Label>
-          <Input
-            type="date"
-            value={formData.validTo || ''}
-            onChange={(e) => handleFieldChange('validTo', e.target.value)}
-            className="bg-[#323232] border-[#424242] text-white"
-          />
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderFields = () => {
+  const isFieldDisabled = (fieldName) => {
+    if (!evaluation.type) return true;
+    
     switch (evaluation.type) {
       case 'EPD':
-        return renderEPDFields();
+        if (evaluation.epdType === 'Product specific LCA') {
+          return ['programOperator', 'iso21930Compliance', 'epdVerificationIso14025', 'externalIndependentReviewer'].includes(fieldName);
+        }
+        if (evaluation.epdType === 'Product-specific Type III Internal EPD') {
+          return ['externalIndependentReviewer'].includes(fieldName);
+        }
+        if (evaluation.epdType !== 'Industry-wide/generic EPD') {
+          return ['manufacturerRecognized'].includes(fieldName);
+        }
+        break;
+        
       case 'LCA':
-        return renderLCAFields();
-      default:
-        return renderGenericFields();
+        if (evaluation.lcaOptimizationType === 'LCA impact reduction action plan') {
+          return ['sameOptimizationPcr', 'optimizationLcaVerification', 'personConductingOptimizationLca',
+                  'optimizationLcaSoftware', 'comparativeAnalysis', 'narrativeReductions', 
+                  'reductionGwp10', 'reductionGwp20', 'reductionAdditional2Categories'].includes(fieldName);
+        }
+        if (evaluation.lcaOptimizationType !== 'LCA impact reduction action plan') {
+          return ['milestonesForImprovements', 'narrativeActions', 'targetImpactAreas',
+                  'companyExecutiveSignature', 'summaryLargestImpacts'].includes(fieldName);
+        }
+        if (evaluation.lcaOptimizationType !== 'Verified impact reductions in GWP' && 
+            evaluation.lcaOptimizationType !== 'Verified impact reduction in GWP > 20% + in two other > 5%') {
+          return ['reductionGwp10'].includes(fieldName);
+        }
+        if (evaluation.lcaOptimizationType !== 'Verified impact reduction in GWP > 20% + in two other > 5%') {
+          return ['reductionGwp20', 'reductionAdditional2Categories'].includes(fieldName);
+        }
+        break;
     }
+    
+    return false;
   };
+
+  const renderEPDForm = () => (
+    <div className="space-y-4">
+      <div>
+        <Label>Version</Label>
+        <Input
+          value={evaluation.version || ''}
+          onChange={(e) => handleInputChange('version', e.target.value)}
+          className="bg-[#323232] border-[#424242] text-white"
+        />
+      </div>
+
+      <div>
+        <Label>EPD Type</Label>
+        <Select value={evaluation.epdType || ''} onValueChange={(value) => handleInputChange('epdType', value)}>
+          <SelectTrigger className="bg-[#323232] border-[#424242] text-white">
+            <SelectValue placeholder="Select EPD type" />
+          </SelectTrigger>
+          <SelectContent className="bg-[#323232] border-[#424242]">
+            <SelectItem value="Not compliant">Not compliant</SelectItem>
+            <SelectItem value="Product specific LCA">Product specific LCA</SelectItem>
+            <SelectItem value="Industry-wide/generic EPD">Industry-wide/generic EPD</SelectItem>
+            <SelectItem value="Product-specific Type III Internal EPD">Product-specific Type III Internal EPD</SelectItem>
+            <SelectItem value="Product Specific Type III External EPD">Product Specific Type III External EPD</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div>
+        <Label>Geographic Area</Label>
+        <Select value={evaluation.geographicArea || 'Global'} onValueChange={(value) => handleInputChange('geographicArea', value)}>
+          <SelectTrigger className="bg-[#323232] border-[#424242] text-white">
+            <SelectValue placeholder="Select geographic area" />
+          </SelectTrigger>
+          <SelectContent className="bg-[#323232] border-[#424242]">
+            <SelectItem value="Global">Global</SelectItem>
+            <SelectItem value="Europe">Europe</SelectItem>
+            <SelectItem value="North America">North America</SelectItem>
+            <SelectItem value="Asia">Asia</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div>
+        <Label>Content Conformity (%)</Label>
+        <Input
+          type="number"
+          value={evaluation.conformity || 0}
+          onChange={(e) => handleInputChange('conformity', parseInt(e.target.value) || 0)}
+          className="bg-[#323232] border-[#424242] text-white"
+          min="0"
+          max="100"
+        />
+      </div>
+
+      {/* Boolean fields */}
+      {[
+        { key: 'documentId', label: 'Document ID' },
+        { key: 'epdOwner', label: 'EPD owner' },
+        { key: 'programOperator', label: 'Program operator' },
+        { key: 'referencePcr', label: 'Reference PCR' },
+        { key: 'manufacturerRecognized', label: 'Manufacturer recognized as participant' },
+        { key: 'includeFunctionalUnit', label: 'Include functional unit' },
+        { key: 'manufacturingLocations', label: 'Manufacturing location(s) indicated' },
+        { key: 'minimumCradleToGate', label: 'Minimum cradle to gate scope' },
+        { key: 'allSixImpactCategories', label: 'All 6 impact categories listed' },
+        { key: 'lcaVerificationIso14044', label: 'LCA verification according to ISO 14044' },
+        { key: 'personConductingLca', label: 'Identification of the person conducting the LCA' },
+        { key: 'lcaSoftware', label: 'LCA software used' },
+        { key: 'iso21930Compliance', label: 'ISO 21930 or EN 15804 compliance' },
+        { key: 'epdVerificationIso14025', label: 'EPD verification according to ISO 14025' },
+        { key: 'externalIndependentReviewer', label: 'Identification of the external independent reviewer' }
+      ].map(field => (
+        <div key={field.key} className="flex items-center space-x-2">
+          <Checkbox
+            checked={evaluation[field.key] || false}
+            onCheckedChange={(checked) => handleInputChange(field.key, checked)}
+            disabled={isFieldDisabled(field.key)}
+          />
+          <Label className={isFieldDisabled(field.key) ? 'text-gray-500' : ''}>{field.label}</Label>
+        </div>
+      ))}
+
+      <div>
+        <Label>Issue Date</Label>
+        <Input
+          type="date"
+          value={evaluation.issueDate || ''}
+          onChange={(e) => handleInputChange('issueDate', e.target.value)}
+          className="bg-[#323232] border-[#424242] text-white"
+        />
+      </div>
+
+      <div>
+        <Label>Valid To</Label>
+        <Input
+          type="date"
+          value={evaluation.validTo || ''}
+          onChange={(e) => handleInputChange('validTo', e.target.value)}
+          className="bg-[#323232] border-[#424242] text-white"
+        />
+      </div>
+
+      <div>
+        <Label>EPD File</Label>
+        <Input
+          type="file"
+          accept=".pdf,.docx,.doc"
+          onChange={(e) => handleInputChange('epdFile', e.target.files?.[0]?.name || '')}
+          className="bg-[#323232] border-[#424242] text-white"
+        />
+      </div>
+    </div>
+  );
+
+  const renderLCAForm = () => (
+    <div className="space-y-4">
+      <div>
+        <Label>Version</Label>
+        <Input
+          value={evaluation.version || ''}
+          onChange={(e) => handleInputChange('version', e.target.value)}
+          className="bg-[#323232] border-[#424242] text-white"
+        />
+      </div>
+
+      <div>
+        <Label>LCA Optimization Type</Label>
+        <Select value={evaluation.lcaOptimizationType || ''} onValueChange={(value) => handleInputChange('lcaOptimizationType', value)}>
+          <SelectTrigger className="bg-[#323232] border-[#424242] text-white">
+            <SelectValue placeholder="Select LCA type" />
+          </SelectTrigger>
+          <SelectContent className="bg-[#323232] border-[#424242]">
+            <SelectItem value="Not compliant">Not compliant</SelectItem>
+            <SelectItem value="LCA impact reduction action plan">LCA impact reduction action plan</SelectItem>
+            <SelectItem value="Verified impact reductions in GWP">Verified impact reductions in GWP</SelectItem>
+            <SelectItem value="Verified impact reduction in GWP > 10%">Verified impact reduction in GWP {'{>}'} 10%</SelectItem>
+            <SelectItem value="Verified impact reduction in GWP > 20% + in two other > 5%">Verified impact reduction in GWP {'{>}'} 20% + in two other {'{>}'} 5%</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div>
+        <Label>Geographic Area</Label>
+        <Select value={evaluation.geographicArea || 'Global'} onValueChange={(value) => handleInputChange('geographicArea', value)}>
+          <SelectTrigger className="bg-[#323232] border-[#424242] text-white">
+            <SelectValue placeholder="Select geographic area" />
+          </SelectTrigger>
+          <SelectContent className="bg-[#323232] border-[#424242]">
+            <SelectItem value="Global">Global</SelectItem>
+            <SelectItem value="Europe">Europe</SelectItem>
+            <SelectItem value="North America">North America</SelectItem>
+            <SelectItem value="Asia">Asia</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div>
+        <Label>Content Conformity (%)</Label>
+        <Input
+          type="number"
+          value={evaluation.conformity || 0}
+          onChange={(e) => handleInputChange('conformity', parseInt(e.target.value) || 0)}
+          className="bg-[#323232] border-[#424242] text-white"
+          min="0"
+          max="100"
+        />
+      </div>
+
+      {/* Boolean fields */}
+      {[
+        { key: 'milestonesForImprovements', label: 'Milestones for improvements with timeline (not more than 4 years)' },
+        { key: 'narrativeActions', label: 'Narrative with actions to be pursued including GWP addressed' },
+        { key: 'targetImpactAreas', label: 'Description of target impact areas' },
+        { key: 'companyExecutiveSignature', label: 'Signature of company executive' },
+        { key: 'summaryLargestImpacts', label: 'Table/Summary of largest life cycle impacts' },
+        { key: 'sameOptimizationPcr', label: 'Same optimization PCR as reference PCR' },
+        { key: 'optimizationLcaVerification', label: 'Optimization LCA verification according to ISO 14044' },
+        { key: 'personConductingOptimizationLca', label: 'Identification of the person conducting the optimization LCA' },
+        { key: 'optimizationLcaSoftware', label: 'Optimization LCA software used' },
+        { key: 'comparativeAnalysis', label: 'Comparative analysis showing impact reduction in GWP' },
+        { key: 'narrativeReductions', label: 'Narrative describing how reductions in impacts were achieved' },
+        { key: 'reductionGwp10', label: 'Reduction in GWP against the baseline 10%' },
+        { key: 'reductionGwp20', label: 'Reduction in GWP against the baseline 20%' },
+        { key: 'reductionAdditional2Categories', label: 'Reduction in additional 2 impact categories against the baseline >5%' }
+      ].map(field => (
+        <div key={field.key} className="flex items-center space-x-2">
+          <Checkbox
+            checked={evaluation[field.key] || false}
+            onCheckedChange={(checked) => handleInputChange(field.key, checked)}
+            disabled={isFieldDisabled(field.key)}
+          />
+          <Label className={isFieldDisabled(field.key) ? 'text-gray-500' : ''}>{field.label}</Label>
+        </div>
+      ))}
+
+      <div>
+        <Label>Issue Date</Label>
+        <Input
+          type="date"
+          value={evaluation.issueDate || ''}
+          onChange={(e) => handleInputChange('issueDate', e.target.value)}
+          className="bg-[#323232] border-[#424242] text-white"
+        />
+      </div>
+
+      <div>
+        <Label>Valid To</Label>
+        <Input
+          type="date"
+          value={evaluation.validTo || ''}
+          onChange={(e) => handleInputChange('validTo', e.target.value)}
+          className="bg-[#323232] border-[#424242] text-white"
+        />
+      </div>
+
+      <div>
+        <Label>LCA File</Label>
+        <Input
+          type="file"
+          accept=".pdf,.docx,.doc"
+          onChange={(e) => handleInputChange('lcaFile', e.target.files?.[0]?.name || '')}
+          className="bg-[#323232] border-[#424242] text-white"
+        />
+      </div>
+    </div>
+  );
+
+  const renderGenericForm = () => (
+    <div className="space-y-4">
+      <div>
+        <Label>Version</Label>
+        <Input
+          value={evaluation.version || ''}
+          onChange={(e) => handleInputChange('version', e.target.value)}
+          className="bg-[#323232] border-[#424242] text-white"
+        />
+      </div>
+
+      <div>
+        <Label>Geographic Area</Label>
+        <Select value={evaluation.geographicArea || 'Global'} onValueChange={(value) => handleInputChange('geographicArea', value)}>
+          <SelectTrigger className="bg-[#323232] border-[#424242] text-white">
+            <SelectValue placeholder="Select geographic area" />
+          </SelectTrigger>
+          <SelectContent className="bg-[#323232] border-[#424242]">
+            <SelectItem value="Global">Global</SelectItem>
+            <SelectItem value="Europe">Europe</SelectItem>
+            <SelectItem value="North America">North America</SelectItem>
+            <SelectItem value="Asia">Asia</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div>
+        <Label>Content Conformity (%)</Label>
+        <Input
+          type="number"
+          value={evaluation.conformity || 0}
+          onChange={(e) => handleInputChange('conformity', parseInt(e.target.value) || 0)}
+          className="bg-[#323232] border-[#424242] text-white"
+          min="0"
+          max="100"
+        />
+      </div>
+
+      <div>
+        <Label>Issue Date</Label>
+        <Input
+          type="date"
+          value={evaluation.issueDate || ''}
+          onChange={(e) => handleInputChange('issueDate', e.target.value)}
+          className="bg-[#323232] border-[#424242] text-white"
+        />
+      </div>
+
+      <div>
+        <Label>Valid To</Label>
+        <Input
+          type="date"
+          value={evaluation.validTo || ''}
+          onChange={(e) => handleInputChange('validTo', e.target.value)}
+          className="bg-[#323232] border-[#424242] text-white"
+        />
+      </div>
+
+      <div>
+        <Label>File Upload</Label>
+        <Input
+          type="file"
+          accept=".pdf,.docx,.doc"
+          onChange={(e) => handleInputChange('file', e.target.files?.[0]?.name || '')}
+          className="bg-[#323232] border-[#424242] text-white"
+        />
+      </div>
+    </div>
+  );
+
+  if (!evaluation.type) {
+    return <div className="text-center text-gray-400 py-8">Select an evaluation type to configure</div>;
+  }
 
   return (
     <div className="space-y-6">
-      {renderFields()}
-      
-      <div className="flex justify-end">
-        <Button 
-          type="button" 
-          onClick={calculateConformity}
-          className="bg-[#358C48] hover:bg-[#4ea045]"
-        >
-          <Save className="mr-2 h-4 w-4" />
-          Calculate Conformity
-        </Button>
-      </div>
+      {evaluation.type === 'EPD' && renderEPDForm()}
+      {evaluation.type === 'LCA' && renderLCAForm()}
+      {!['EPD', 'LCA'].includes(evaluation.type) && renderGenericForm()}
     </div>
   );
 }
