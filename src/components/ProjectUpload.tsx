@@ -89,20 +89,28 @@ export function ProjectUpload({ onMaterialsUploaded, existingMaterials = [] }: P
       const processedMaterials: ProjectMaterial[] = [];
       let matchedCount = 0;
       const errors: string[] = [];
+      let validRowsCount = 0;
 
       rows.forEach((row, index) => {
         try {
           const rowNumber = index + 2; // +2 because we skipped header and arrays are 0-indexed
           
           // Extract data from Excel columns (A=0, B=1, C=2, D=3, E=4, F=5)
-          const id = row[0]?.toString() || '';
-          const name = row[1]?.toString() || '';
-          const manufacturer = row[2]?.toString() || '';
+          const id = row[0]?.toString().trim() || '';
+          const name = row[1]?.toString().trim() || '';
+          const manufacturer = row[2]?.toString().trim() || '';
           const m2 = row[3] ? parseFloat(row[3].toString()) : undefined;
           const m3 = row[4] ? parseFloat(row[4].toString()) : undefined;
           const units = row[5] ? parseFloat(row[5].toString()) : undefined;
 
-          // Validate required fields
+          // Skip completely empty rows
+          if (!id && !name && !manufacturer && !m2 && !m3 && !units) {
+            return;
+          }
+
+          validRowsCount++;
+
+          // Validate required fields only for non-empty rows
           if (!name || !manufacturer) {
             errors.push(`Linha ${rowNumber}: Nome e Fabricante são obrigatórios`);
             return;
@@ -119,8 +127,8 @@ export function ProjectUpload({ onMaterialsUploaded, existingMaterials = [] }: P
           
           const projectMaterial: ProjectMaterial = {
             id: id || `ROW_${rowNumber}`,
-            name: name.trim(),
-            manufacturer: manufacturer.trim(),
+            name: name,
+            manufacturer: manufacturer,
             quantity_m2: m2 && !isNaN(m2) ? m2 : undefined,
             quantity_m3: m3 && !isNaN(m3) ? m3 : undefined,
             units: units && !isNaN(units) ? units : undefined,
@@ -141,7 +149,7 @@ export function ProjectUpload({ onMaterialsUploaded, existingMaterials = [] }: P
       });
 
       const results = {
-        total: rows.length,
+        total: validRowsCount,
         processed: processedMaterials.length,
         matched: matchedCount,
         errors: errors
@@ -247,7 +255,7 @@ export function ProjectUpload({ onMaterialsUploaded, existingMaterials = [] }: P
                 <span className="text-sm font-medium">Processamento Concluído</span>
               </div>
               <div className="text-sm text-gray-300">
-                <p>Total de linhas no Excel: {processingResults.total}</p>
+                <p>Total de materiais válidos no Excel: {processingResults.total}</p>
                 <p>Materiais processados: {processingResults.processed}</p>
                 <p>Materiais encontrados na base de dados: {processingResults.matched}</p>
                 <p>Materiais não encontrados: {processingResults.processed - processingResults.matched}</p>
