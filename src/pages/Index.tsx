@@ -253,6 +253,14 @@ export default function Index() {
         project={selectedProject} 
         onClose={() => setSelectedProject(null)}
         materials={materials}
+        onEditMaterial={(material) => {
+          setEditingMaterial(material);
+          setSelectedProject(null);
+          setShowMaterialForm(true);
+        }}
+        onDeleteMaterial={(materialId) => {
+          handleDeleteMaterial(materialId);
+        }}
       />
     );
   }

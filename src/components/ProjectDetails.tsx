@@ -46,9 +46,11 @@ interface ProjectDetailsProps {
   project: Project;
   onClose: () => void;
   materials: Material[];
+  onEditMaterial?: (material: Material) => void;
+  onDeleteMaterial?: (materialId: number) => void;
 }
 
-export function ProjectDetails({ project, onClose, materials }: ProjectDetailsProps) {
+export function ProjectDetails({ project, onClose, materials, onEditMaterial, onDeleteMaterial }: ProjectDetailsProps) {
   const [selectedMaterial, setSelectedMaterial] = useState<Material | null>(null);
 
   const normalizeText = (text: string) => {
@@ -95,8 +97,18 @@ export function ProjectDetails({ project, onClose, materials }: ProjectDetailsPr
       <MaterialDetails 
         material={selectedMaterial} 
         onClose={() => setSelectedMaterial(null)}
-        onEdit={() => {}}
-        onDelete={() => {}}
+        onEdit={() => {
+          if (onEditMaterial) {
+            onEditMaterial(selectedMaterial);
+          }
+          setSelectedMaterial(null);
+        }}
+        onDelete={() => {
+          if (onDeleteMaterial) {
+            onDeleteMaterial(selectedMaterial.id);
+          }
+          setSelectedMaterial(null);
+        }}
       />
     );
   }
