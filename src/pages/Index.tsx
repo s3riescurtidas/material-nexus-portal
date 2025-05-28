@@ -145,14 +145,14 @@ export default function Index() {
         .map(([cert, _]) => cert);
 
       if (activeCertifications.length > 0) {
-        const materialCertifications = material.evaluations.map(eval => {
-          if (eval.type === "Manufacturer Inventory") return "MI";
-          if (eval.type === "REACH Optimization") return "REACH";
-          if (eval.type === "Health Product Declaration") return "HPD";
-          if (eval.type === "Product Circularity") return "PC";
-          if (eval.type === "Global Green Tag Product Health Declaration") return "GGTPHD";
-          if (eval.type === "FSC / PEFC") return "FSC_PEFC";
-          return eval.type;
+        const materialCertifications = material.evaluations.map(evaluation => {
+          if (evaluation.type === "Manufacturer Inventory") return "MI";
+          if (evaluation.type === "REACH Optimization") return "REACH";
+          if (evaluation.type === "Health Product Declaration") return "HPD";
+          if (evaluation.type === "Product Circularity") return "PC";
+          if (evaluation.type === "Global Green Tag Product Health Declaration") return "GGTPHD";
+          if (evaluation.type === "FSC / PEFC") return "FSC_PEFC";
+          return evaluation.type;
         });
 
         const hasRequiredCertifications = activeCertifications.some(cert => 
