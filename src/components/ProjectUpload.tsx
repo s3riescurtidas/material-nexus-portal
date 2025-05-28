@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Upload, FileText, AlertCircle, CheckCircle } from "lucide-react";
+import * as XLSX from 'xlsx';
 
 interface ProjectMaterial {
   id: string;
@@ -13,14 +14,15 @@ interface ProjectMaterial {
   quantity_m2?: number;
   quantity_m3?: number;
   units?: number;
-  databaseMaterial?: any; // Reference to material in database if found
+  databaseMaterial?: any;
 }
 
 interface ProjectUploadProps {
   onMaterialsUploaded: (materials: ProjectMaterial[]) => void;
+  existingMaterials?: any[];
 }
 
-export function ProjectUpload({ onMaterialsUploaded }: ProjectUploadProps) {
+export function ProjectUpload({ onMaterialsUploaded, existingMaterials = [] }: ProjectUploadProps) {
   const [file, setFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -32,7 +34,6 @@ export function ProjectUpload({ onMaterialsUploaded }: ProjectUploadProps) {
     errors: string[];
   } | null>(null);
 
-  // Normalize text for comparison (remove accents, convert to lowercase)
   const normalizeText = (text: string) => {
     return text
       .toLowerCase()
@@ -41,7 +42,6 @@ export function ProjectUpload({ onMaterialsUploaded }: ProjectUploadProps) {
       .trim();
   };
 
-  // Function to find matching material in database
   const findMatchingMaterial = (excelMaterial: any, databaseMaterials: any[]) => {
     const normalizedExcelName = normalizeText(excelMaterial.name);
     const normalizedExcelManufacturer = normalizeText(excelMaterial.manufacturer);
@@ -73,108 +73,65 @@ export function ProjectUpload({ onMaterialsUploaded }: ProjectUploadProps) {
     setProcessingResults(null);
 
     try {
-      // Simulate reading Excel file with actual Excel data structure
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data);
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+      // Skip header row and process data
+      const rows = jsonData.slice(1) as any[][];
       
-      // Simulate Excel data - this would come from actual Excel parsing
-      const excelData = [
-        {
-          id: "001",
-          name: "Madeira escura vaselinada",
-          manufacturer: "Madeiras & madeira",
-          quantity_m2: 25.5,
-          quantity_m3: undefined,
-          units: undefined
-        },
-        {
-          id: "002", 
-          name: "Betão estrutural",
-          manufacturer: "Amorim Cimentos", 
-          quantity_m2: undefined,
-          quantity_m3: 15.8,
-          units: undefined
-        },
-        {
-          id: "003",
-          name: "Tijolo cerâmico furado",
-          manufacturer: "Cerâmicas Silva",
-          quantity_m2: undefined,
-          quantity_m3: undefined,
-          units: 1500
-        },
-        {
-          id: "004",
-          name: "Vidro temperado duplo",
-          manufacturer: "Vidros Premium",
-          quantity_m2: 12.3,
-          quantity_m3: undefined,
-          units: undefined
-        },
-        {
-          id: "005",
-          name: "Betao estrutural", // Test case with different spelling/accent
-          manufacturer: "amorim cimentos", // Test case with different case
-          quantity_m2: undefined,
-          quantity_m3: 8.5,
-          units: undefined
-        }
-      ];
+      if (rows.length === 0) {
+        throw new Error("Arquivo Excel vazio ou sem dados válidos");
+      }
 
-      // Get materials from parent component - for now we'll simulate some existing materials
-      const existingMaterials = [
-        {
-          id: 1,
-          name: "Madeira escura vaselinada",
-          manufacturer: "Madeiras & madeira",
-          category: "Wood",
-          subcategory: "Treated Wood"
-        },
-        {
-          id: 2,
-          name: "Betão estrutural", 
-          manufacturer: "Amorim Cimentos",
-          category: "Concrete",
-          subcategory: "Standard Concrete"
-        }
-      ];
-
-      // Process each Excel row and try to match with existing materials
       const processedMaterials: ProjectMaterial[] = [];
       let matchedCount = 0;
       const errors: string[] = [];
 
-      excelData.forEach((excelRow, index) => {
+      rows.forEach((row, index) => {
         try {
+          const rowNumber = index + 2; // +2 because we skipped header and arrays are 0-indexed
+          
+          // Extract data from Excel columns (A=0, B=1, C=2, D=3, E=4, F=5)
+          const id = row[0]?.toString() || '';
+          const name = row[1]?.toString() || '';
+          const manufacturer = row[2]?.toString() || '';
+          const m2 = row[3] ? parseFloat(row[3].toString()) : undefined;
+          const m3 = row[4] ? parseFloat(row[4].toString()) : undefined;
+          const units = row[5] ? parseFloat(row[5].toString()) : undefined;
+
           // Validate required fields
-          if (!excelRow.name || !excelRow.manufacturer) {
-            errors.push(`Linha ${index + 2}: Nome e Fabricante são obrigatórios`);
+          if (!name || !manufacturer) {
+            errors.push(`Linha ${rowNumber}: Nome e Fabricante são obrigatórios`);
             return;
           }
 
           // Validate that at least one quantity field has a value
-          if (!excelRow.quantity_m2 && !excelRow.quantity_m3 && !excelRow.units) {
-            errors.push(`Linha ${index + 2}: Pelo menos um campo de quantidade (M², M³ ou Unidades) deve ser preenchido`);
+          if (!m2 && !m3 && !units) {
+            errors.push(`Linha ${rowNumber}: Pelo menos um campo de quantidade (M², M³ ou Unidades) deve ser preenchido`);
             return;
           }
 
           // Try to find matching material in database
-          const matchingMaterial = findMatchingMaterial(excelRow, existingMaterials);
+          const matchingMaterial = findMatchingMaterial({ name, manufacturer }, existingMaterials);
           
           const projectMaterial: ProjectMaterial = {
-            id: excelRow.id || `EXCEL_${index + 1}`,
-            name: excelRow.name.trim(),
-            manufacturer: excelRow.manufacturer.trim(),
-            quantity_m2: excelRow.quantity_m2 || undefined,
-            quantity_m3: excelRow.quantity_m3 || undefined,
-            units: excelRow.units || undefined,
+            id: id || `ROW_${rowNumber}`,
+            name: name.trim(),
+            manufacturer: manufacturer.trim(),
+            quantity_m2: m2 && !isNaN(m2) ? m2 : undefined,
+            quantity_m3: m3 && !isNaN(m3) ? m3 : undefined,
+            units: units && !isNaN(units) ? units : undefined,
             databaseMaterial: matchingMaterial || null
           };
 
           if (matchingMaterial) {
             matchedCount++;
-            console.log(`Material correspondente encontrado: ${excelRow.name} - ${excelRow.manufacturer}`);
+            console.log(`Material correspondente encontrado: ${name} - ${manufacturer}`);
           } else {
-            console.log(`Material não encontrado na base de dados: ${excelRow.name} - ${excelRow.manufacturer}`);
+            console.log(`Material não encontrado na base de dados: ${name} - ${manufacturer}`);
           }
 
           processedMaterials.push(projectMaterial);
@@ -183,9 +140,8 @@ export function ProjectUpload({ onMaterialsUploaded }: ProjectUploadProps) {
         }
       });
 
-      // Set processing results
       const results = {
-        total: excelData.length,
+        total: rows.length,
         processed: processedMaterials.length,
         matched: matchedCount,
         errors: errors
@@ -201,7 +157,7 @@ export function ProjectUpload({ onMaterialsUploaded }: ProjectUploadProps) {
         total: 0,
         processed: 0,
         matched: 0,
-        errors: ["Formato de arquivo inválido"]
+        errors: ["Formato de arquivo inválido ou erro de leitura"]
       });
     } finally {
       setIsProcessing(false);
@@ -214,6 +170,34 @@ export function ProjectUpload({ onMaterialsUploaded }: ProjectUploadProps) {
     if (material.quantity_m3) quantities.push(`${material.quantity_m3} m³`);
     if (material.units) quantities.push(`${material.units} unidades`);
     return quantities.length > 0 ? quantities.join(', ') : "N/A";
+  };
+
+  const getEvaluationsDisplay = (material: any) => {
+    if (!material || !material.evaluations || material.evaluations.length === 0) {
+      return null;
+    }
+
+    const evaluations = material.evaluations.slice(0, 3);
+    const hasMore = material.evaluations.length > 3;
+
+    return (
+      <div className="flex flex-wrap gap-1 mt-1">
+        {evaluations.map((evaluation: any, index: number) => (
+          <span 
+            key={evaluation.id || index}
+            className="text-xs px-2 py-1 rounded bg-[#35568C] text-white"
+          >
+            {evaluation.type}
+            {evaluation.version && ` v${evaluation.version}`}
+          </span>
+        ))}
+        {hasMore && (
+          <span className="text-xs px-2 py-1 rounded bg-[#525252] text-gray-300">
+            ...
+          </span>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -263,8 +247,8 @@ export function ProjectUpload({ onMaterialsUploaded }: ProjectUploadProps) {
                 <span className="text-sm font-medium">Processamento Concluído</span>
               </div>
               <div className="text-sm text-gray-300">
-                <p>Total de linhas processadas: {processingResults.total}</p>
-                <p>Materiais válidos: {processingResults.processed}</p>
+                <p>Total de linhas no Excel: {processingResults.total}</p>
+                <p>Materiais processados: {processingResults.processed}</p>
                 <p>Materiais encontrados na base de dados: {processingResults.matched}</p>
                 <p>Materiais não encontrados: {processingResults.processed - processingResults.matched}</p>
                 {processingResults.errors.length > 0 && (
@@ -299,19 +283,22 @@ export function ProjectUpload({ onMaterialsUploaded }: ProjectUploadProps) {
           <CardContent>
             <div className="space-y-3">
               {uploadedMaterials.map((material) => (
-                <div key={material.id} className="bg-[#424242] rounded p-4 border border-[#525252]">
+                <div key={material.id} className={`rounded p-4 border ${
+                  material.databaseMaterial 
+                    ? 'bg-[#424242] border-[#525252]' 
+                    : 'bg-[#8C3535] border-[#a04545]'
+                }`}>
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <h4 className="text-white font-medium">{material.name}</h4>
-                        {material.databaseMaterial && (
+                        {material.databaseMaterial ? (
                           <span className="text-xs bg-green-600 text-white px-2 py-1 rounded">
                             Encontrado na base
                           </span>
-                        )}
-                        {!material.databaseMaterial && (
-                          <span className="text-xs bg-yellow-600 text-white px-2 py-1 rounded">
-                            Novo material
+                        ) : (
+                          <span className="text-xs bg-red-600 text-white px-2 py-1 rounded">
+                            Não pertence à base de dados
                           </span>
                         )}
                       </div>
@@ -326,6 +313,12 @@ export function ProjectUpload({ onMaterialsUploaded }: ProjectUploadProps) {
                           <span className="font-medium">Quantidade:</span> {getQuantityDisplay(material)}
                         </div>
                       </div>
+                      {material.databaseMaterial && (
+                        <div className="mt-2">
+                          <span className="text-gray-300 text-sm">Avaliações:</span>
+                          {getEvaluationsDisplay(material.databaseMaterial)}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

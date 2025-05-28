@@ -597,6 +597,7 @@ export default function Index() {
             setProjects(prev => [...prev, project]);
             setShowProjectForm(false);
           }}
+          existingMaterials={materials}
         />
       )}
     </div>

@@ -19,9 +19,10 @@ interface ProjectMaterial {
 interface ProjectFormProps {
   onClose: () => void;
   onSave: (project: any) => void;
+  existingMaterials?: any[];
 }
 
-export function ProjectForm({ onClose, onSave }: ProjectFormProps) {
+export function ProjectForm({ onClose, onSave, existingMaterials = [] }: ProjectFormProps) {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -111,7 +112,10 @@ export function ProjectForm({ onClose, onSave }: ProjectFormProps) {
             </div>
           </div>
 
-          <ProjectUpload onMaterialsUploaded={handleMaterialsUploaded} />
+          <ProjectUpload 
+            onMaterialsUploaded={handleMaterialsUploaded} 
+            existingMaterials={existingMaterials}
+          />
 
           <div className="flex justify-end space-x-2 pt-4 border-t border-[#424242]">
             <Button type="button" variant="outline" onClick={onClose} className="border-[#525252] text-white hover:bg-[#424242]">
