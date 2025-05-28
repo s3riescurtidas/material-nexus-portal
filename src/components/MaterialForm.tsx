@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,7 +24,16 @@ export function MaterialForm({ material, onClose, onSave }) {
 
   useEffect(() => {
     if (material) {
-      setFormData(material);
+      // Ensure all evaluation data is properly preserved
+      const preservedMaterial = {
+        ...material,
+        evaluations: material.evaluations.map(evaluation => ({
+          ...evaluation,
+          // Preserve all boolean states and other properties
+          conformity: evaluation.conformity || 0
+        }))
+      };
+      setFormData(preservedMaterial);
     }
   }, [material]);
 
@@ -44,7 +54,16 @@ export function MaterialForm({ material, onClose, onSave }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSave(formData);
+    // Ensure all evaluation data is properly saved
+    const savedMaterial = {
+      ...formData,
+      evaluations: formData.evaluations.map(evaluation => ({
+        ...evaluation,
+        // Ensure all fields are preserved
+        id: evaluation.id || Date.now() + Math.random()
+      }))
+    };
+    onSave(savedMaterial);
   };
 
   const handleInputChange = (field, value) => {
@@ -56,12 +75,13 @@ export function MaterialForm({ material, onClose, onSave }) {
 
   const addEvaluation = (type) => {
     const newEvaluation = {
-      id: Date.now(), // Add unique ID for each evaluation
+      id: Date.now() + Math.random(),
       type,
       version: '',
       issueDate: '',
       validTo: '',
       conformity: 0,
+      geographicArea: 'Global',
       // Initialize all fields based on evaluation type
       ...getInitialEvaluationFields(type)
     };
@@ -85,7 +105,7 @@ export function MaterialForm({ material, onClose, onSave }) {
     setFormData(prev => ({
       ...prev,
       evaluations: prev.evaluations.map((currentEvaluation, i) => 
-        i === index ? evaluationData : currentEvaluation
+        i === index ? { ...currentEvaluation, ...evaluationData } : currentEvaluation
       )
     }));
   };

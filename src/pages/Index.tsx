@@ -1,15 +1,14 @@
-
 import React, { useState, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, Edit, Trash2, Eye, Plus, Upload } from "lucide-react";
+import { Search, Edit, Trash2, Eye, Plus, Upload, Menu, X } from "lucide-react";
 import { MaterialForm } from "@/components/MaterialForm";
 import { ProjectForm } from "@/components/ProjectForm";
 import { MaterialDetails } from "@/components/MaterialDetails";
 import { ProjectDetails } from "@/components/ProjectDetails";
+import { DatabaseManagement } from "@/components/DatabaseManagement";
 
 interface Evaluation {
   id: number;
@@ -41,6 +40,7 @@ interface Project {
 
 export default function Index() {
   const [activeTab, setActiveTab] = useState("search");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showMaterialForm, setShowMaterialForm] = useState(false);
   const [editingMaterial, setEditingMaterial] = useState<Material | null>(null);
   const [showProjectForm, setShowProjectForm] = useState(false);
@@ -77,6 +77,15 @@ export default function Index() {
     }
   ]);
 
+  const [manufacturers, setManufacturers] = useState(["Madeiras & madeira", "Amorim Cimentos", "Test Manufacturer"]);
+  const [categories, setCategories] = useState(["Wood", "Concrete", "Metal", "Glass"]);
+  const [subcategories, setSubcategories] = useState<Record<string, string[]>>({
+    "Wood": ["Treated Wood", "Natural Wood", "Laminated Wood"],
+    "Concrete": ["Standard Concrete", "High Performance Concrete"],
+    "Metal": ["Steel", "Aluminum", "Copper"],
+    "Glass": ["Standard Glass", "Tempered Glass", "Laminated Glass"]
+  });
+
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedManufacturer, setSelectedManufacturer] = useState("all");
   const [selectedCategory, setSelectedCategory] = useState("all");
@@ -94,15 +103,6 @@ export default function Index() {
     FSC_PEFC: false,
     ECOLABEL: false
   });
-
-  const manufacturers = ["Madeiras & madeira", "Amorim Cimentos", "Test Manufacturer"];
-  const categories = ["Wood", "Concrete", "Metal", "Glass"];
-  const subcategories: Record<string, string[]> = {
-    "Wood": ["Treated Wood", "Natural Wood", "Laminated Wood"],
-    "Concrete": ["Standard Concrete", "High Performance Concrete"],
-    "Metal": ["Steel", "Aluminum", "Copper"],
-    "Glass": ["Standard Glass", "Tempered Glass", "Laminated Glass"]
-  };
 
   // Normalize text for search (remove accents and convert to lowercase)
   const normalizeText = (text: string) => {
@@ -200,27 +200,6 @@ export default function Index() {
     }
   };
 
-  const checkEvaluationStatus = (evaluationData: Evaluation, projectStart = "2023-01-01", projectEnd = "2027-12-31") => {
-    const evaluationStart = new Date(evaluationData.issueDate);
-    const evaluationEnd = new Date(evaluationData.validTo);
-    const projStart = new Date(projectStart);
-    const projEnd = new Date(projectEnd);
-
-    if (evaluationEnd >= projStart && evaluationStart <= projEnd) {
-      return "green"; // Valid during project
-    } else if (evaluationEnd < projStart) {
-      return "red"; // Expired before project
-    } else if (evaluationStart > projEnd) {
-      return "blue"; // Valid after project
-    }
-    return "purple";
-  };
-
-  const getEvaluationDisplayText = (evaluation: Evaluation) => {
-    const version = evaluation.version ? ` v${evaluation.version}` : '';
-    return `${evaluation.type}${version}`;
-  };
-
   // Group evaluations by type for display
   const groupEvaluationsByType = (evaluations: Evaluation[]) => {
     const grouped: Record<string, Evaluation[]> = {};
@@ -282,35 +261,48 @@ export default function Index() {
     <div className="min-h-screen bg-[#282828] text-white">
       <div className="flex w-full">
         {/* Sidebar */}
-        <div className="w-64 bg-[#222222] p-4 min-h-screen">
-          <h1 className="text-xl font-bold mb-6">Material Database</h1>
+        <div className={`${sidebarCollapsed ? 'w-16' : 'w-64'} bg-[#222222] p-4 min-h-screen transition-all duration-300`}>
+          <div className="flex items-center justify-between mb-6">
+            {!sidebarCollapsed && <h1 className="text-xl font-bold">Material Database</h1>}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              className="text-white hover:bg-[#323232]"
+            >
+              {sidebarCollapsed ? <Menu className="h-4 w-4" /> : <X className="h-4 w-4" />}
+            </Button>
+          </div>
           
           <div className="space-y-2">
             <Button 
               variant={activeTab === "search" ? "default" : "ghost"}
-              className="w-full justify-start"
+              className={`${sidebarCollapsed ? 'px-2' : 'w-full justify-start'}`}
               onClick={() => setActiveTab("search")}
+              title="Search Materials"
             >
-              <Search className="mr-2 h-4 w-4" />
-              Search Materials
+              <Search className={`h-4 w-4 ${!sidebarCollapsed ? 'mr-2' : ''}`} />
+              {!sidebarCollapsed && "Search Materials"}
             </Button>
             
             <Button 
               variant={activeTab === "database" ? "default" : "ghost"}
-              className="w-full justify-start"
+              className={`${sidebarCollapsed ? 'px-2' : 'w-full justify-start'}`}
               onClick={() => setActiveTab("database")}
+              title="Database Management"
             >
-              <Edit className="mr-2 h-4 w-4" />
-              Database Management
+              <Edit className={`h-4 w-4 ${!sidebarCollapsed ? 'mr-2' : ''}`} />
+              {!sidebarCollapsed && "Database Management"}
             </Button>
             
             <Button 
               variant={activeTab === "projects" ? "default" : "ghost"}
-              className="w-full justify-start"
+              className={`${sidebarCollapsed ? 'px-2' : 'w-full justify-start'}`}
               onClick={() => setActiveTab("projects")}
+              title="Projects"
             >
-              <Upload className="mr-2 h-4 w-4" />
-              Projects
+              <Upload className={`h-4 w-4 ${!sidebarCollapsed ? 'mr-2' : ''}`} />
+              {!sidebarCollapsed && "Projects"}
             </Button>
           </div>
         </div>
@@ -478,135 +470,21 @@ export default function Index() {
           )}
 
           {activeTab === "database" && (
-            <div>
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold">Database Management</h2>
-                <Button 
-                  onClick={() => {
-                    setEditingMaterial(null);
-                    setShowMaterialForm(true);
-                  }}
-                  className="bg-[#358C48] hover:bg-[#4ea045]"
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add Material
-                </Button>
-              </div>
-              
-              <Tabs defaultValue="materials" className="w-full">
-                <TabsList className="grid w-full grid-cols-4 bg-[#323232]">
-                  <TabsTrigger value="materials" className="data-[state=active]:bg-[#424242]">Materials</TabsTrigger>
-                  <TabsTrigger value="manufacturers" className="data-[state=active]:bg-[#424242]">Manufacturers</TabsTrigger>
-                  <TabsTrigger value="categories" className="data-[state=active]:bg-[#424242]">Categories</TabsTrigger>
-                  <TabsTrigger value="subcategories" className="data-[state=active]:bg-[#424242]">Subcategories</TabsTrigger>
-                </TabsList>
-                
-                <TabsContent value="materials" className="mt-4">
-                  <div className="space-y-4">
-                    {materials
-                      .sort((a, b) => a.name.localeCompare(b.name))
-                      .map(material => (
-                      <div key={material.id} className="bg-[#323232] border border-[#424242] rounded-lg p-4">
-                        <div className="flex justify-between items-center">
-                          <div>
-                            <h3 className="font-bold">{material.name}</h3>
-                            <p className="text-[#B5B5B5]">{material.manufacturer}</p>
-                            <p className="text-xs text-[#B5B5B5]">
-                              {material.evaluations.length} evaluation(s)
-                            </p>
-                          </div>
-                          <div className="flex gap-2">
-                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              className="bg-[#358C48] hover:bg-[#4ea045]"
-                              onClick={() => handleEditMaterial(material)}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              className="bg-[#8C3535] hover:bg-[#a04545]"
-                              onClick={() => handleDeleteMaterial(material.id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </TabsContent>
-                
-                <TabsContent value="manufacturers" className="mt-4">
-                  <div className="space-y-4">
-                    {manufacturers.sort().map(manufacturer => (
-                      <div key={manufacturer} className="bg-[#323232] border border-[#424242] rounded-lg p-4">
-                        <div className="flex justify-between items-center">
-                          <h3 className="font-bold">{manufacturer}</h3>
-                          <div className="flex gap-2">
-                            <Button size="sm" variant="outline" className="bg-[#358C48] hover:bg-[#4ea045]">
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button size="sm" variant="outline" className="bg-[#8C3535] hover:bg-[#a04545]">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </TabsContent>
-                
-                <TabsContent value="categories" className="mt-4">
-                  <div className="space-y-4">
-                    {categories.sort().map(category => (
-                      <div key={category} className="bg-[#323232] border border-[#424242] rounded-lg p-4">
-                        <div className="flex justify-between items-center">
-                          <h3 className="font-bold">{category}</h3>
-                          <div className="flex gap-2">
-                            <Button size="sm" variant="outline" className="bg-[#358C48] hover:bg-[#4ea045]">
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button size="sm" variant="outline" className="bg-[#8C3535] hover:bg-[#a04545]">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </TabsContent>
-                
-                <TabsContent value="subcategories" className="mt-4">
-                  <div className="space-y-4">
-                    {Object.entries(subcategories)
-                      .sort(([a], [b]) => a.localeCompare(b))
-                      .map(([category, subs]) => (
-                      <div key={category} className="bg-[#323232] border border-[#424242] rounded-lg p-4">
-                        <h3 className="font-bold mb-2">{category}</h3>
-                        <div className="space-y-2">
-                          {subs.sort().map(sub => (
-                            <div key={sub} className="flex justify-between items-center bg-[#424242] p-2 rounded">
-                              <span>{sub}</span>
-                              <div className="flex gap-2">
-                                <Button size="sm" variant="outline" className="bg-[#358C48] hover:bg-[#4ea045]">
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                                <Button size="sm" variant="outline" className="bg-[#8C3535] hover:bg-[#a04545]">
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </TabsContent>
-              </Tabs>
-            </div>
+            <DatabaseManagement
+              materials={materials}
+              manufacturers={manufacturers}
+              categories={categories}
+              subcategories={subcategories}
+              onEditMaterial={handleEditMaterial}
+              onDeleteMaterial={handleDeleteMaterial}
+              onAddMaterial={() => {
+                setEditingMaterial(null);
+                setShowMaterialForm(true);
+              }}
+              onUpdateManufacturers={setManufacturers}
+              onUpdateCategories={setCategories}
+              onUpdateSubcategories={setSubcategories}
+            />
           )}
 
           {activeTab === "projects" && (

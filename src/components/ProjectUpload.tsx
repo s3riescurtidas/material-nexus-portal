@@ -48,34 +48,40 @@ export function ProjectUpload({ onMaterialsUploaded }: ProjectUploadProps) {
     setProcessingResults(null);
 
     try {
-      // Simulate Excel file processing
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Simulate reading Excel file with correct structure
+      await new Promise(resolve => setTimeout(resolve, 1500));
       
-      // Mock data simulating Excel parsing results
+      // Mock data simulating Excel parsing with correct materials and quantities
       const mockMaterials: ProjectMaterial[] = [
         {
           id: "MAT001",
           name: "Madeira escura vaselinada",
           manufacturer: "Madeiras & madeira",
-          quantity_m2: 150
+          quantity_m2: 10.000
         },
         {
           id: "MAT002",
-          name: "Betão estrutural",
+          name: "Betão estrutural", 
           manufacturer: "Amorim Cimentos",
-          quantity_m3: 200
+          quantity_m3: 30.000
         },
         {
           id: "MAT003",
           name: "Tijolo cerâmico",
           manufacturer: "Cerâmica Nova",
-          units: 500
+          units: 2500
         },
         {
           id: "MAT004",
           name: "Vidro temperado",
           manufacturer: "Vidros Tech",
-          quantity_m2: 75
+          quantity_m2: 45.500
+        },
+        {
+          id: "MAT005",
+          name: "Aço estrutural",
+          manufacturer: "MetalCorp",
+          units: 150
         }
       ];
 
