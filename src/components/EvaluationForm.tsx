@@ -5,8 +5,13 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 
-export function EvaluationForm({ evaluation, onChange }) {
-  const handleInputChange = (field, value) => {
+interface EvaluationFormProps {
+  evaluation: any;
+  onChange: (evaluation: any) => void;
+}
+
+export function EvaluationForm({ evaluation, onChange }: EvaluationFormProps) {
+  const handleInputChange = (field: string, value: any) => {
     const updatedEvaluation = { ...evaluation, [field]: value };
     
     // Auto-calculate conformity when boolean fields change
@@ -17,7 +22,7 @@ export function EvaluationForm({ evaluation, onChange }) {
     onChange(updatedEvaluation);
   };
 
-  const calculateConformity = (evaluationData) => {
+  const calculateConformity = (evaluationData: any) => {
     if (!evaluationData.type) return 0;
 
     let totalFields = 0;
@@ -39,7 +44,7 @@ export function EvaluationForm({ evaluation, onChange }) {
     return Math.floor((checkedFields / totalFields) * 100);
   };
 
-  const getFieldsForConformityCalculation = (evaluationData) => {
+  const getFieldsForConformityCalculation = (evaluationData: any) => {
     const baseFields = ['geographicArea'];
     
     switch (evaluationData.type) {
@@ -94,7 +99,7 @@ export function EvaluationForm({ evaluation, onChange }) {
     }
   };
 
-  const isFieldDisabled = (fieldName) => {
+  const isFieldDisabled = (fieldName: string) => {
     if (!evaluation.type) return true;
     
     switch (evaluation.type) {
@@ -207,8 +212,8 @@ export function EvaluationForm({ evaluation, onChange }) {
       ].map(field => (
         <div key={field.key} className="flex items-center space-x-2">
           <Checkbox
-            checked={evaluation[field.key] || false}
-            onCheckedChange={(checked) => handleInputChange(field.key, checked)}
+            checked={evaluation[field.key] === true}
+            onCheckedChange={(checked) => handleInputChange(field.key, checked === true)}
             disabled={isFieldDisabled(field.key)}
           />
           <Label className={isFieldDisabled(field.key) ? 'text-gray-500' : ''}>{field.label}</Label>
@@ -320,8 +325,8 @@ export function EvaluationForm({ evaluation, onChange }) {
       ].map(field => (
         <div key={field.key} className="flex items-center space-x-2">
           <Checkbox
-            checked={evaluation[field.key] || false}
-            onCheckedChange={(checked) => handleInputChange(field.key, checked)}
+            checked={evaluation[field.key] === true}
+            onCheckedChange={(checked) => handleInputChange(field.key, checked === true)}
             disabled={isFieldDisabled(field.key)}
           />
           <Label className={isFieldDisabled(field.key) ? 'text-gray-500' : ''}>{field.label}</Label>
