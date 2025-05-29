@@ -1,9 +1,10 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, Plus, Eye, Edit, Trash2, Folder } from "lucide-react";
+import { Search, Plus, Eye, Edit, Trash2, Folder, FileText } from "lucide-react";
 import { MaterialForm } from "@/components/MaterialForm";
 import { MaterialDetails } from "@/components/MaterialDetails";
 import { ProjectForm } from "@/components/ProjectForm";
@@ -58,10 +59,13 @@ export default function Index() {
   const [manufacturers, setManufacturers] = useState<string[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [subcategories, setSubcategories] = useState<Record<string, string[]>>({});
+  const [evaluationTypes, setEvaluationTypes] = useState<string[]>([]);
   
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedSubcategory, setSelectedSubcategory] = useState('');
   const [selectedManufacturer, setSelectedManufacturer] = useState('');
+  const [selectedEvaluationType, setSelectedEvaluationType] = useState('');
   
   const [showMaterialForm, setShowMaterialForm] = useState(false);
   const [editingMaterial, setEditingMaterial] = useState<Material | null>(null);
@@ -104,6 +108,7 @@ export default function Index() {
       setManufacturers(config.manufacturers);
       setCategories(config.categories);
       setSubcategories(config.subcategories);
+      setEvaluationTypes(config.evaluationTypes || []);
     } catch (error) {
       console.error('Failed to load data:', error);
     }
@@ -178,6 +183,22 @@ export default function Index() {
     }
   };
 
+  const openFileExplorer = (fileName: string) => {
+    try {
+      // For web applications, we'll try to download the file
+      const link = document.createElement('a');
+      link.href = `/evaluations/${fileName}`;
+      link.download = fileName;
+      link.target = '_blank';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('Erro ao abrir ficheiro:', error);
+      alert('Erro ao abrir o ficheiro. Verifique se o ficheiro existe.');
+    }
+  };
+
   const filteredMaterials = materials.filter(material => {
     const searchTermLower = searchTerm.toLowerCase();
     const matchesSearch = material.name.toLowerCase().includes(searchTermLower) ||
@@ -185,12 +206,24 @@ export default function Index() {
                            material.manufacturer.toLowerCase().includes(searchTermLower);
 
     const matchesCategory = !selectedCategory || material.category === selectedCategory;
+    const matchesSubcategory = !selectedSubcategory || material.subcategory === selectedSubcategory;
     const matchesManufacturer = !selectedManufacturer || material.manufacturer === selectedManufacturer;
+    const matchesEvaluation = !selectedEvaluationType || 
+                              material.evaluations.some(eval => eval.type === selectedEvaluationType);
 
-    return matchesSearch && matchesCategory && matchesManufacturer;
+    return matchesSearch && matchesCategory && matchesSubcategory && matchesManufacturer && matchesEvaluation;
   });
 
   const sortedMaterials = [...filteredMaterials].sort((a, b) => a.name.localeCompare(b.name));
+
+  const availableSubcategories = selectedCategory ? subcategories[selectedCategory] || [] : [];
+
+  // Reset subcategory when category changes
+  useEffect(() => {
+    if (selectedCategory && !availableSubcategories.includes(selectedSubcategory)) {
+      setSelectedSubcategory('');
+    }
+  }, [selectedCategory, availableSubcategories, selectedSubcategory]);
 
   if (isLoading) {
     return (
@@ -226,6 +259,7 @@ export default function Index() {
           setShowMaterialForm(true);
         }}
         onDelete={() => handleDeleteMaterial(selectedMaterial.id)}
+        onOpenFile={openFileExplorer}
       />
     );
   }
@@ -286,7 +320,7 @@ export default function Index() {
           </TabsList>
 
           <TabsContent value="search">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-6">
               <Input
                 type="text"
                 placeholder="Pesquisar materiais..."
@@ -306,6 +340,17 @@ export default function Index() {
               </select>
               <select
                 className="bg-[#323232] border-[#424242] text-white rounded p-2"
+                value={selectedSubcategory}
+                onChange={(e) => setSelectedSubcategory(e.target.value)}
+                disabled={!selectedCategory}
+              >
+                <option value="">Todas as Subcategorias</option>
+                {availableSubcategories.map(subcategory => (
+                  <option key={subcategory} value={subcategory}>{subcategory}</option>
+                ))}
+              </select>
+              <select
+                className="bg-[#323232] border-[#424242] text-white rounded p-2"
                 value={selectedManufacturer}
                 onChange={(e) => setSelectedManufacturer(e.target.value)}
               >
@@ -314,19 +359,84 @@ export default function Index() {
                   <option key={manufacturer} value={manufacturer}>{manufacturer}</option>
                 ))}
               </select>
+              <select
+                className="bg-[#323232] border-[#424242] text-white rounded p-2"
+                value={selectedEvaluationType}
+                onChange={(e) => setSelectedEvaluationType(e.target.value)}
+              >
+                <option value="">Todas as Avaliações</option>
+                {evaluationTypes.map(type => (
+                  <option key={type} value={type}>{type}</option>
+                ))}
+              </select>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSearchTerm('');
+                  setSelectedCategory('');
+                  setSelectedSubcategory('');
+                  setSelectedManufacturer('');
+                  setSelectedEvaluationType('');
+                }}
+                className="bg-[#8C3535] hover:bg-[#a04545] text-white"
+              >
+                Limpar Filtros
+              </Button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {sortedMaterials.map(material => (
                 <Card key={material.id} className="bg-[#323232] border-[#424242]">
                   <CardHeader>
-                    <CardTitle className="text-white">{material.name}</CardTitle>
+                    <CardTitle className="text-white text-lg">{material.name}</CardTitle>
+                    <p className="text-gray-300 text-sm">{material.manufacturer}</p>
+                    <p className="text-gray-400 text-xs">{material.category} - {material.subcategory}</p>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-gray-400">{material.manufacturer}</p>
+                    <div className="mb-4">
+                      <h4 className="text-white font-semibold mb-2">Avaliações:</h4>
+                      {material.evaluations.length > 0 ? (
+                        <div className="space-y-2">
+                          {material.evaluations.map((evaluation, index) => (
+                            <div key={index} className="bg-[#424242] p-2 rounded text-sm">
+                              <div className="flex justify-between items-center">
+                                <span className="text-white font-medium">{evaluation.type}</span>
+                                <span className={`px-2 py-1 rounded text-xs ${
+                                  evaluation.conformity >= 80 ? 'bg-green-600 text-white' :
+                                  evaluation.conformity >= 50 ? 'bg-yellow-600 text-white' :
+                                  'bg-red-600 text-white'
+                                }`}>
+                                  {evaluation.conformity}%
+                                </span>
+                              </div>
+                              <div className="text-gray-300 text-xs mt-1">
+                                <p>Versão: {evaluation.version}</p>
+                                <p>Válido até: {evaluation.validTo}</p>
+                                {evaluation.fileName && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="mt-1 bg-[#35568C] hover:bg-[#89A9D2] text-white text-xs"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      openFileExplorer(evaluation.fileName!);
+                                    }}
+                                  >
+                                    <FileText className="mr-1 h-3 w-3" />
+                                    Ver Ficheiro
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-gray-400 text-sm">Nenhuma avaliação</p>
+                      )}
+                    </div>
                     <Button 
                       variant="outline" 
-                      className="w-full mt-4 bg-[#35568C] hover:bg-[#89A9D2]"
+                      className="w-full bg-[#35568C] hover:bg-[#89A9D2] text-white"
                       onClick={() => setSelectedMaterial(material)}
                     >
                       <Eye className="mr-2 h-4 w-4" />
