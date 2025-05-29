@@ -129,6 +129,7 @@ export function EvaluationForm({ evaluation, onChange }: EvaluationFormProps) {
                   'companyExecutiveSignature', 'summaryLargestImpacts'].includes(fieldName);
         }
         if (evaluationData.lcaOptimizationType !== 'Verified impact reductions in GWP' && 
+            evaluationData.lcaOptimizationType !== 'Verified impact reduction in GWP > 10%' &&
             evaluationData.lcaOptimizationType !== 'Verified impact reduction in GWP > 20% + in two other > 5%') {
           return ['reductionGwp10'].includes(fieldName);
         }
@@ -180,7 +181,7 @@ export function EvaluationForm({ evaluation, onChange }: EvaluationFormProps) {
         break;
 
       case 'Declare':
-        if (!['Verified Declared', 'Verified LBC Compliant', 'Verified Red List Free'].includes(evaluationData.declareType)) {
+        if (!['Verified Declared', 'Verified LBC Compliant', 'Verified Red List Free'].includes(evaluation.declareType)) {
           return ['externalReviewer'].includes(fieldName);
         }
         break;
@@ -778,7 +779,7 @@ export function EvaluationForm({ evaluation, onChange }: EvaluationFormProps) {
       {evaluation.type === 'C2C' && renderC2CForm()}
       {evaluation.type === 'Declare' && renderDeclareForm()}
       {evaluation.type === 'Product Circularity' && renderProductCircularityForm()}
-      {!['EPD', 'LCA', 'Manufacturer Inventory', 'REACH Optimization', 'Health Product Declaration', 'C2C', 'Declare', 'Product Circularity'].includes(evaluation.type) && renderGenericForm()}
+      {['Global Green Tag Product Health Declaration', 'FSC / PEFC', 'ECOLABEL'].includes(evaluation.type) && renderGenericForm()}
     </div>
   );
 }
