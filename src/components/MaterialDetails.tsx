@@ -1,8 +1,8 @@
-
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Edit, Trash2, FileText } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ArrowLeft, Edit, Trash2, FileText, Eye } from "lucide-react";
 
 interface Evaluation {
   id: number;
@@ -11,6 +11,15 @@ interface Evaluation {
   issueDate: string;
   validTo: string;
   conformity: number;
+  geographicArea: string;
+  c2cType: string;
+  cleanAirClimateProtection: string;
+  waterSoilStewardship: string;
+  socialFearness: string;
+  productCircularity: string;
+  additionalAchievement: string;
+  documentId: string;
+  inventoryAssessed: string;
 }
 
 interface Material {
@@ -31,6 +40,8 @@ interface MaterialDetailsProps {
 }
 
 export function MaterialDetails({ material, onClose, onEdit, onDelete }: MaterialDetailsProps) {
+  const [selectedEvaluation, setSelectedEvaluation] = useState<Evaluation | null>(null);
+
   const getEvaluationColor = (evaluation: Evaluation, projectStart = "2023-01-01", projectEnd = "2027-12-31") => {
     const evaluationStart = new Date(evaluation.issueDate);
     const evaluationEnd = new Date(evaluation.validTo);
@@ -60,6 +71,67 @@ export function MaterialDetails({ material, onClose, onEdit, onDelete }: Materia
 
   const groupedEvaluations = groupEvaluationsByType(material.evaluations);
 
+  const renderEvaluationDetails = (evaluation: Evaluation) => {
+    const fields = getEvaluationDisplayFields(evaluation);
+    
+    return (
+      <Dialog open={!!selectedEvaluation} onOpenChange={() => setSelectedEvaluation(null)}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto bg-[#282828] border-[#424242] text-white">
+          <DialogHeader>
+            <DialogTitle className="text-xl">
+              Detalhes da Avaliação: {evaluation.type} v{evaluation.version}
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {fields.map((field, index) => (
+              <div key={index} className="grid grid-cols-3 gap-4 py-2 border-b border-[#424242]">
+                <div className="text-gray-300">{field.label}:</div>
+                <div className="col-span-2 text-white">
+                  {typeof field.value === 'boolean' 
+                    ? (field.value ? '✓ Sim' : '✗ Não')
+                    : field.value || 'N/A'
+                  }
+                </div>
+              </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  };
+
+  const getEvaluationDisplayFields = (evaluation: Evaluation) => {
+    // Return formatted fields for display based on evaluation type
+    const commonFields = [
+      { label: 'Versão', value: evaluation.version },
+      { label: 'Área Geográfica', value: evaluation.geographicArea },
+      { label: 'Data de Emissão', value: new Date(evaluation.issueDate).toLocaleDateString() },
+      { label: 'Válido até', value: new Date(evaluation.validTo).toLocaleDateString() },
+      { label: 'Conformidade', value: `${evaluation.conformity}%` }
+    ];
+
+    // Add type-specific fields
+    const typeSpecificFields = [];
+    
+    if (evaluation.type === 'C2C') {
+      typeSpecificFields.push(
+        { label: 'Tipo C2C', value: evaluation.c2cType },
+        { label: 'Clean Air and Climate Protection', value: evaluation.cleanAirClimateProtection },
+        { label: 'Water and Soil Stewardship', value: evaluation.waterSoilStewardship },
+        { label: 'Social Fearness', value: evaluation.socialFearness },
+        { label: 'Product Circularity', value: evaluation.productCircularity },
+        { label: 'Additional Achievement', value: evaluation.additionalAchievement },
+        { label: 'Document ID', value: evaluation.documentId },
+        { label: 'Inventory Assessed', value: evaluation.inventoryAssessed }
+      );
+    }
+    
+    // Add more type-specific fields for other evaluation types...
+
+    return [...commonFields, ...typeSpecificFields];
+  };
+
   return (
     <div className="min-h-screen bg-[#282828] text-white p-6">
       <div className="max-w-4xl mx-auto">
@@ -69,25 +141,28 @@ export function MaterialDetails({ material, onClose, onEdit, onDelete }: Materia
             <Button 
               variant="outline" 
               onClick={onClose}
-              className="bg-[#323232] border-[#424242] hover:bg-[#424242]"
+              className="bg-[#323232] border-[#424242] hover:bg-[#424242] text-white"
             >
               <ArrowLeft className="h-4 w-4 mr-2" />
               Voltar
             </Button>
-            <h1 className="text-3xl font-bold">{material.name}</h1>
+            <div>
+              <h1 className="text-3xl font-bold">{material.name}</h1>
+              <span className="text-sm bg-[#424242] px-2 py-1 rounded">ID: {material.id}</span>
+            </div>
           </div>
           
           <div className="flex gap-2">
             <Button 
               onClick={onEdit}
-              className="bg-[#358C48] hover:bg-[#4ea045]"
+              className="bg-[#358C48] hover:bg-[#4ea045] text-white"
             >
               <Edit className="h-4 w-4 mr-2" />
               Editar
             </Button>
             <Button 
               onClick={onDelete}
-              className="bg-[#8C3535] hover:bg-[#a04545]"
+              className="bg-[#8C3535] hover:bg-[#a04545] text-white"
             >
               <Trash2 className="h-4 w-4 mr-2" />
               Excluir
@@ -126,7 +201,7 @@ export function MaterialDetails({ material, onClose, onEdit, onDelete }: Materia
           </CardContent>
         </Card>
 
-        {/* Evaluations */}
+        {/* Evaluations with enhanced details */}
         <Card className="bg-[#323232] border-[#424242]">
           <CardHeader>
             <CardTitle className="text-white">Avaliações ({material.evaluations.length})</CardTitle>
@@ -177,11 +252,20 @@ export function MaterialDetails({ material, onClose, onEdit, onDelete }: Materia
                             </div>
                           </div>
                           
-                          <div className="mt-3 pt-3 border-t border-[#525252]">
+                          <div className="mt-3 pt-3 border-t border-[#525252] flex gap-2">
                             <Button 
                               size="sm" 
                               variant="outline"
-                              className="bg-[#35568C] hover:bg-[#89A9D2] border-[#35568C]"
+                              className="bg-[#35568C] hover:bg-[#89A9D2] border-[#35568C] text-white"
+                              onClick={() => setSelectedEvaluation(evaluation)}
+                            >
+                              <Eye className="h-4 w-4 mr-2" />
+                              Ver Detalhes
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              className="bg-[#35568C] hover:bg-[#89A9D2] border-[#35568C] text-white"
                             >
                               <FileText className="h-4 w-4 mr-2" />
                               Ver Arquivo
@@ -196,6 +280,9 @@ export function MaterialDetails({ material, onClose, onEdit, onDelete }: Materia
             )}
           </CardContent>
         </Card>
+
+        {/* Evaluation Details Dialog */}
+        {selectedEvaluation && renderEvaluationDetails(selectedEvaluation)}
       </div>
     </div>
   );
