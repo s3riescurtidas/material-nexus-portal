@@ -28,6 +28,9 @@ interface Evaluation {
   issueDate: string;
   validTo: string;
   conformity: number;
+  geographicArea: string;
+  fileName?: string;
+  [key: string]: any;
 }
 
 interface Material {

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,6 +20,9 @@ interface Evaluation {
   issueDate: string;
   validTo: string;
   conformity: number;
+  geographicArea: string;
+  fileName?: string;
+  [key: string]: any;
 }
 
 interface Material {
