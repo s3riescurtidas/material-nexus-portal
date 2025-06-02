@@ -209,7 +209,7 @@ export default function Index() {
     const matchesSubcategory = !selectedSubcategory || material.subcategory === selectedSubcategory;
     const matchesManufacturer = !selectedManufacturer || material.manufacturer === selectedManufacturer;
     const matchesEvaluation = !selectedEvaluationType || 
-                              material.evaluations.some(eval => eval.type === selectedEvaluationType);
+                              material.evaluations.some(evaluation => evaluation.type === selectedEvaluationType);
 
     return matchesSearch && matchesCategory && matchesSubcategory && matchesManufacturer && matchesEvaluation;
   });

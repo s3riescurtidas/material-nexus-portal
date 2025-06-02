@@ -92,6 +92,22 @@ export function ProjectDetails({ project, onClose, materials, onEditMaterial, on
     return "N/A";
   };
 
+  const openFileExplorer = (fileName: string) => {
+    try {
+      // For web applications, we'll try to download the file
+      const link = document.createElement('a');
+      link.href = `/evaluations/${fileName}`;
+      link.download = fileName;
+      link.target = '_blank';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('Erro ao abrir ficheiro:', error);
+      alert('Erro ao abrir o ficheiro. Verifique se o ficheiro existe.');
+    }
+  };
+
   const sortedProjectMaterials = [...project.materials].sort((a, b) => a.id.localeCompare(b.id));
 
   if (selectedMaterial) {
@@ -111,6 +127,7 @@ export function ProjectDetails({ project, onClose, materials, onEditMaterial, on
           }
           setSelectedMaterial(null);
         }}
+        onOpenFile={openFileExplorer}
       />
     );
   }

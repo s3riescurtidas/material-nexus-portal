@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,12 +7,13 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 
 interface EvaluationFormProps {
-  evaluation: any;
-  onChange: (evaluation: any) => void;
+  evaluation?: Evaluation | null;
+  onClose: () => void;
+  onSave: (evaluationData: any) => void;
 }
 
-export function EvaluationForm({ evaluation, onChange }: EvaluationFormProps) {
-  const [notes, setNotes] = useState(evaluation.notes || '');
+export function EvaluationForm({ evaluation, onClose, onSave }: EvaluationFormProps) {
+  const [notes, setNotes] = useState(evaluation?.notes || '');
 
   const handleInputChange = (field: string, value: any) => {
     const updatedEvaluation = { ...evaluation, [field]: value };
@@ -23,7 +23,7 @@ export function EvaluationForm({ evaluation, onChange }: EvaluationFormProps) {
       updatedEvaluation.conformity = calculateConformity(updatedEvaluation);
     }
     
-    onChange(updatedEvaluation);
+    onSave(updatedEvaluation);
   };
 
   const calculateConformity = (evaluationData: any) => {
@@ -65,7 +65,7 @@ export function EvaluationForm({ evaluation, onChange }: EvaluationFormProps) {
         return [
           'milestonesForImprovements', 'narrativeActions', 'targetImpactAreas', 
           'companyExecutiveSignature', 'summaryLargestImpacts', 'sameOptimizationPcr', 
-          'optimizationLcaVerification', 'personConductingOptimizationLca', 
+          'optimizationLcaVerification', 'personConductingOptimizationLca',
           'optimizationLcaSoftware', 'comparativeAnalysis', 'narrativeReductions', 
           'reductionGwp10', 'reductionGwp20', 'reductionAdditional2Categories'
         ];
