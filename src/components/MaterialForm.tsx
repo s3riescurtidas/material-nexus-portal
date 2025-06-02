@@ -354,7 +354,8 @@ export function MaterialForm({ material, onClose, onSave }) {
                   <TabsContent key={evaluation.id || index} value={index.toString()}>
                     <EvaluationForm
                       evaluation={evaluation}
-                      onChange={(updatedEvaluation) => updateEvaluation(index, updatedEvaluation)}
+                      onClose={() => setActiveEvaluationIndex(-1)}
+                      onSave={(updatedEvaluation) => updateEvaluation(index, updatedEvaluation)}
                     />
                   </TabsContent>
                 ))}
