@@ -301,8 +301,8 @@ export function EvaluationForm({ evaluation, onClose, onSave }: EvaluationFormPr
                   <SelectItem value="Not compliant">Not compliant</SelectItem>
                   <SelectItem value="LCA impact reduction action plan">LCA impact reduction action plan</SelectItem>
                   <SelectItem value="Verified impact reductions in GWP">Verified impact reductions in GWP</SelectItem>
-                  <SelectItem value="Verified impact reduction in GWP > 10%">Verified impact reduction in GWP > 10%</SelectItem>
-                  <SelectItem value="Verified impact reduction in GWP > 20% + in two other > 5%">Verified impact reduction in GWP > 20% + in two other > 5%</SelectItem>
+                  <SelectItem value="Verified impact reduction in GWP > 10%">Verified impact reduction in GWP &gt; 10%</SelectItem>
+                  <SelectItem value="Verified impact reduction in GWP > 20% + in two other > 5%">Verified impact reduction in GWP &gt; 20% + in two other &gt; 5%</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -316,7 +316,7 @@ export function EvaluationForm({ evaluation, onClose, onSave }: EvaluationFormPr
                       checked={formData.milestonesForImprovements || false}
                       onCheckedChange={(checked) => handleInputChange('milestonesForImprovements', checked === true)}
                     />
-                    <Label htmlFor="milestonesForImprovements">Milestones for improvements with timeline</Label>
+                    <Label htmlFor="milestonesForImprovements">Milestones for improvements with timeline (not more than 4 years)</Label>
                   </div>
                   
                   <div className="flex items-center space-x-2">
@@ -325,7 +325,7 @@ export function EvaluationForm({ evaluation, onClose, onSave }: EvaluationFormPr
                       checked={formData.narrativeActions || false}
                       onCheckedChange={(checked) => handleInputChange('narrativeActions', checked === true)}
                     />
-                    <Label htmlFor="narrativeActions">Narrative with actions to be pursued</Label>
+                    <Label htmlFor="narrativeActions">Narrative with actions to be pursued including GWP addressed</Label>
                   </div>
 
                   <div className="flex items-center space-x-2">
@@ -383,7 +383,7 @@ export function EvaluationForm({ evaluation, onClose, onSave }: EvaluationFormPr
                       checked={formData.personConductingOptimizationLca || false}
                       onCheckedChange={(checked) => handleInputChange('personConductingOptimizationLca', checked === true)}
                     />
-                    <Label htmlFor="personConductingOptimizationLca">Person conducting optimization LCA</Label>
+                    <Label htmlFor="personConductingOptimizationLca">Identification of the person conducting the optimization LCA</Label>
                   </div>
 
                   <div className="flex items-center space-x-2">
@@ -410,7 +410,7 @@ export function EvaluationForm({ evaluation, onClose, onSave }: EvaluationFormPr
                       checked={formData.narrativeReductions || false}
                       onCheckedChange={(checked) => handleInputChange('narrativeReductions', checked === true)}
                     />
-                    <Label htmlFor="narrativeReductions">Narrative describing how reductions were achieved</Label>
+                    <Label htmlFor="narrativeReductions">Narrative describing how reductions in impacts were achieved</Label>
                   </div>
                 </>
               )}
@@ -422,7 +422,7 @@ export function EvaluationForm({ evaluation, onClose, onSave }: EvaluationFormPr
                     checked={formData.reductionGwp10 || false}
                     onCheckedChange={(checked) => handleInputChange('reductionGwp10', checked === true)}
                   />
-                  <Label htmlFor="reductionGwp10">Reduction in GWP against baseline 10%</Label>
+                  <Label htmlFor="reductionGwp10">Reduction in GWP against the baseline 10%</Label>
                 </div>
               )}
 
@@ -434,7 +434,7 @@ export function EvaluationForm({ evaluation, onClose, onSave }: EvaluationFormPr
                       checked={formData.reductionGwp20 || false}
                       onCheckedChange={(checked) => handleInputChange('reductionGwp20', checked === true)}
                     />
-                    <Label htmlFor="reductionGwp20">Reduction in GWP against baseline 20%</Label>
+                    <Label htmlFor="reductionGwp20">Reduction in GWP against the baseline 20%</Label>
                   </div>
 
                   <div className="flex items-center space-x-2">
@@ -443,7 +443,7 @@ export function EvaluationForm({ evaluation, onClose, onSave }: EvaluationFormPr
                       checked={formData.reductionAdditional2Categories || false}
                       onCheckedChange={(checked) => handleInputChange('reductionAdditional2Categories', checked === true)}
                     />
-                    <Label htmlFor="reductionAdditional2Categories">Reduction in additional 2 impact categories >5%</Label>
+                    <Label htmlFor="reductionAdditional2Categories">Reduction in additional 2 impact categories against the baseline {'>'}5%</Label>
                   </div>
                 </>
               )}
@@ -557,7 +557,7 @@ export function EvaluationForm({ evaluation, onClose, onSave }: EvaluationFormPr
                       checked={formData.greaterThan95wtAssessed || false}
                       onCheckedChange={(checked) => handleInputChange('greaterThan95wtAssessed', checked === true)}
                     />
-                    <Label htmlFor="greaterThan95wtAssessed">&gt;95wt.% is assessed using GreenScreen and no BM-1 hazards</Label>
+                    <Label htmlFor="greaterThan95wtAssessed">{'>'}95wt.% is assessed using GreenScreen and no BM-1 hazards are present</Label>
                   </div>
 
                   <div className="flex items-center space-x-2">
@@ -566,7 +566,7 @@ export function EvaluationForm({ evaluation, onClose, onSave }: EvaluationFormPr
                       checked={formData.remaining5PercentInventoried || false}
                       onCheckedChange={(checked) => handleInputChange('remaining5PercentInventoried', checked === true)}
                     />
-                    <Label htmlFor="remaining5PercentInventoried">Remaining 5% inventoried and no GreenScreen LT-1 hazards</Label>
+                    <Label htmlFor="remaining5PercentInventoried">Remaining 5% is inventoried and no GreenScreen LT-1 hazards are present</Label>
                   </div>
                 </>
               )}
@@ -578,7 +578,7 @@ export function EvaluationForm({ evaluation, onClose, onSave }: EvaluationFormPr
                     checked={formData.externalIndependentReviewer || false}
                     onCheckedChange={(checked) => handleInputChange('externalIndependentReviewer', checked === true)}
                   />
-                  <Label htmlFor="externalIndependentReviewer">Identification of external independent reviewer</Label>
+                  <Label htmlFor="externalIndependentReviewer">Identification of the external independent reviewer</Label>
                 </div>
               )}
             </div>
@@ -655,7 +655,7 @@ export function EvaluationForm({ evaluation, onClose, onSave }: EvaluationFormPr
                     checked={formData.identificationAuthorReport || false}
                     onCheckedChange={(checked) => handleInputChange('identificationAuthorReport', checked === true)}
                   />
-                  <Label htmlFor="identificationAuthorReport">Identification of author of the report</Label>
+                  <Label htmlFor="identificationAuthorReport">Identification of the author of the report</Label>
                 </div>
               )}
             </div>
@@ -719,7 +719,7 @@ export function EvaluationForm({ evaluation, onClose, onSave }: EvaluationFormPr
                   checked={formData.hazardsFullDisclosed || false}
                   onCheckedChange={(checked) => handleInputChange('hazardsFullDisclosed', checked === true)}
                 />
-                <Label htmlFor="hazardsFullDisclosed">Hazards full disclosed in compliance with HPD Open Standard</Label>
+                <Label htmlFor="hazardsFullDisclosed">Hazards full disclosed in compliance with the HPD Open Standard</Label>
               </div>
 
               {formData.hpdType === 'Verified advanced HPD' && (
@@ -741,7 +741,7 @@ export function EvaluationForm({ evaluation, onClose, onSave }: EvaluationFormPr
                       checked={formData.greaterThan95wtAssessed || false}
                       onCheckedChange={(checked) => handleInputChange('greaterThan95wtAssessed', checked === true)}
                     />
-                    <Label htmlFor="greaterThan95wtAssessed">&gt;95wt.% is assessed using GreenScreen and no BM-1 hazards</Label>
+                    <Label htmlFor="greaterThan95wtAssessed">{'>'}95wt.% is assessed using GreenScreen and no BM-1 hazards are present</Label>
                   </div>
 
                   <div className="flex items-center space-x-2">
@@ -750,7 +750,7 @@ export function EvaluationForm({ evaluation, onClose, onSave }: EvaluationFormPr
                       checked={formData.remaining5PercentInventoried || false}
                       onCheckedChange={(checked) => handleInputChange('remaining5PercentInventoried', checked === true)}
                     />
-                    <Label htmlFor="remaining5PercentInventoried">Remaining 5% inventoried and no GreenScreen LT-1 hazards</Label>
+                    <Label htmlFor="remaining5PercentInventoried">Remaining 5% is inventoried and no GreenScreen LT-1 hazards are present</Label>
                   </div>
                 </>
               )}
