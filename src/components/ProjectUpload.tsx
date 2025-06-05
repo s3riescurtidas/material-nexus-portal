@@ -35,10 +35,12 @@ export function ProjectUpload({ onMaterialsUploaded, existingMaterials = [] }: P
   } | null>(null);
 
   const normalizeText = (text: string) => {
+    if (!text) return '';
     return text
       .toLowerCase()
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]/g, '')
       .trim();
   };
 
@@ -46,13 +48,30 @@ export function ProjectUpload({ onMaterialsUploaded, existingMaterials = [] }: P
     const normalizedExcelName = normalizeText(excelMaterial.name);
     const normalizedExcelManufacturer = normalizeText(excelMaterial.manufacturer);
 
-    return databaseMaterials.find(dbMaterial => {
+    console.log('Procurando material:', {
+      excel: { name: normalizedExcelName, manufacturer: normalizedExcelManufacturer },
+      original: { name: excelMaterial.name, manufacturer: excelMaterial.manufacturer }
+    });
+
+    const match = databaseMaterials.find(dbMaterial => {
       const normalizedDbName = normalizeText(dbMaterial.name);
       const normalizedDbManufacturer = normalizeText(dbMaterial.manufacturer);
       
-      return normalizedDbName === normalizedExcelName && 
-             normalizedDbManufacturer === normalizedExcelManufacturer;
+      const nameMatch = normalizedDbName === normalizedExcelName;
+      const manufacturerMatch = normalizedDbManufacturer === normalizedExcelManufacturer;
+      
+      if (nameMatch && manufacturerMatch) {
+        console.log('Material encontrado na base de dados:', dbMaterial);
+        return true;
+      }
+      return false;
     });
+
+    if (!match) {
+      console.log('Material não encontrado na base de dados para:', excelMaterial.name, excelMaterial.manufacturer);
+    }
+
+    return match;
   };
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -154,6 +173,9 @@ export function ProjectUpload({ onMaterialsUploaded, existingMaterials = [] }: P
         matched: matchedCount,
         errors: errors
       };
+
+      console.log('Resultados do processamento:', results);
+      console.log('Materiais processados:', processedMaterials);
 
       setUploadedMaterials(processedMaterials);
       setProcessingResults(results);
