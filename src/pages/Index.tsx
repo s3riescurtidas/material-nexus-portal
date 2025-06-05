@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Search, Plus, Eye, Edit, Trash2, Folder, FileText } from "lucide-react";
 import { MaterialForm } from "@/components/MaterialForm";
 import { MaterialDetails } from "@/components/MaterialDetails";
+import { EvaluationDetails } from "@/components/EvaluationDetails";
 import { ProjectForm } from "@/components/ProjectForm";
 import { ProjectDetails } from "@/components/ProjectDetails";
 import { DatabaseManagement } from "@/components/DatabaseManagement";
@@ -76,6 +76,7 @@ export default function Index() {
   
   const [activeTab, setActiveTab] = useState('search');
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedEvaluation, setSelectedEvaluation] = useState<Evaluation | null>(null);
 
   // Initialize database and load data
   useEffect(() => {
@@ -264,6 +265,16 @@ export default function Index() {
     );
   }
 
+  if (selectedEvaluation) {
+    return (
+      <EvaluationDetails
+        evaluation={selectedEvaluation}
+        onClose={() => setSelectedEvaluation(null)}
+        onOpenFile={openFileExplorer}
+      />
+    );
+  }
+
   if (showProjectForm) {
     return (
       <ProjectForm
@@ -398,7 +409,8 @@ export default function Index() {
                       {material.evaluations.length > 0 ? (
                         <div className="space-y-2">
                           {material.evaluations.map((evaluation, index) => (
-                            <div key={index} className="bg-[#424242] p-2 rounded text-sm">
+                            <div key={index} className="bg-[#424242] p-2 rounded text-sm cursor-pointer hover:bg-[#525252] transition-colors"
+                                 onClick={() => setSelectedEvaluation(evaluation)}>
                               <div className="flex justify-between items-center">
                                 <span className="text-white font-medium">{evaluation.type}</span>
                                 <span className={`px-2 py-1 rounded text-xs ${

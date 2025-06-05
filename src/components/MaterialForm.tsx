@@ -31,8 +31,19 @@ export function MaterialForm({ material, onClose, onSave }) {
 
   useEffect(() => {
     loadConfig();
+  }, []);
+
+  useEffect(() => {
     if (material) {
-      setFormData(material);
+      console.log('Loading material for editing:', material);
+      setFormData({
+        name: material.name || '',
+        manufacturer: material.manufacturer || '',
+        category: material.category || '',
+        subcategory: material.subcategory || '',
+        description: material.description || '',
+        evaluations: material.evaluations || []
+      });
     }
   }, [material]);
 
@@ -109,6 +120,8 @@ export function MaterialForm({ material, onClose, onSave }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    console.log('Saving material with data:', formData);
+    
     // Ensure all evaluation data is properly saved
     const savedMaterial = {
       ...formData,
@@ -122,6 +135,7 @@ export function MaterialForm({ material, onClose, onSave }) {
   };
 
   const handleInputChange = (field, value) => {
+    console.log(`Updating ${field} to:`, value);
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -229,6 +243,16 @@ export function MaterialForm({ material, onClose, onSave }) {
     return evaluation.type;
   };
 
+  const handleCategoryChange = (value) => {
+    setFormData(prev => ({
+      ...prev,
+      category: value,
+      subcategory: '' // Reset subcategory when category changes
+    }));
+  };
+
+  const availableSubcategories = formData.category ? config.subcategories[formData.category] || [] : [];
+
   return (
     <Dialog open={true} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-[#282828] border-[#424242] text-white">
@@ -270,7 +294,7 @@ export function MaterialForm({ material, onClose, onSave }) {
 
             <div>
               <Label htmlFor="category">Category</Label>
-              <Select value={formData.category} onValueChange={(value) => handleInputChange('category', value)}>
+              <Select value={formData.category} onValueChange={handleCategoryChange}>
                 <SelectTrigger className="bg-[#323232] border-[#424242] text-white">
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
@@ -289,7 +313,7 @@ export function MaterialForm({ material, onClose, onSave }) {
                   <SelectValue placeholder="Selecionar subcategoria" />
                 </SelectTrigger>
                 <SelectContent className="bg-[#323232] border-[#424242]">
-                  {formData.category && config.subcategories[formData.category]?.map(sub => (
+                  {availableSubcategories.map(sub => (
                     <SelectItem key={sub} value={sub} className="text-white">{sub}</SelectItem>
                   ))}
                 </SelectContent>

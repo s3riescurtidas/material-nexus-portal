@@ -59,14 +59,21 @@ export function ProjectDetails({ project, onClose, materials, onEditMaterial, on
     return text
       .toLowerCase()
       .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "");
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/\s+/g, ' ')
+      .trim();
   };
 
   const findMaterialInDatabase = (projectMaterial: ProjectMaterial) => {
-    return materials.find(material => 
-      normalizeText(material.name) === normalizeText(projectMaterial.name) &&
-      normalizeText(material.manufacturer) === normalizeText(projectMaterial.manufacturer)
-    );
+    return materials.find(material => {
+      const normalizedProjectName = normalizeText(projectMaterial.name);
+      const normalizedProjectManufacturer = normalizeText(projectMaterial.manufacturer);
+      const normalizedMaterialName = normalizeText(material.name);
+      const normalizedMaterialManufacturer = normalizeText(material.manufacturer);
+      
+      return normalizedProjectName === normalizedMaterialName && 
+             normalizedProjectManufacturer === normalizedMaterialManufacturer;
+    });
   };
 
   const getEvaluationColor = (evaluation: Evaluation, projectStart: string, projectEnd: string) => {
