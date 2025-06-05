@@ -28,7 +28,7 @@ interface EvaluationFormProps {
 }
 
 export function EvaluationForm({ evaluation, onClose, onSave }: EvaluationFormProps) {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<Record<string, any>>({
     type: '',
     version: '',
     issueDate: '',
@@ -301,8 +301,8 @@ export function EvaluationForm({ evaluation, onClose, onSave }: EvaluationFormPr
                   <SelectItem value="Not compliant">Not compliant</SelectItem>
                   <SelectItem value="LCA impact reduction action plan">LCA impact reduction action plan</SelectItem>
                   <SelectItem value="Verified impact reductions in GWP">Verified impact reductions in GWP</SelectItem>
-                  <SelectItem value="Verified impact reduction in GWP > 10%">Verified impact reduction in GWP &gt; 10%</SelectItem>
-                  <SelectItem value="Verified impact reduction in GWP > 20% + in two other > 5%">Verified impact reduction in GWP &gt; 20% + in two other &gt; 5%</SelectItem>
+                  <SelectItem value="Verified impact reduction in GWP > 10%">Verified impact reduction in GWP {'>'}10%</SelectItem>
+                  <SelectItem value="Verified impact reduction in GWP > 20% + in two other > 5%">Verified impact reduction in GWP {'>'}20% + in two other {'>'}5%</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -983,7 +983,19 @@ export function EvaluationForm({ evaluation, onClose, onSave }: EvaluationFormPr
         );
 
       case 'Global Green Tag Product Health Declaration':
+        return (
+          <div className="text-gray-400">
+            Este tipo de avaliação não possui campos específicos adicionais.
+          </div>
+        );
+
       case 'FSC / PEFC':
+        return (
+          <div className="text-gray-400">
+            Este tipo de avaliação não possui campos específicos adicionais.
+          </div>
+        );
+
       case 'ECOLABEL':
         return (
           <div className="text-gray-400">
