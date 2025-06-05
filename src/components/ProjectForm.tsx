@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,6 +31,8 @@ export function ProjectForm({ onClose, onSave, existingMaterials = [] }: Project
   
   const [projectMaterials, setProjectMaterials] = useState<ProjectMaterial[]>([]);
 
+  console.log('ProjectForm received', existingMaterials.length, 'existing materials');
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const projectData = {
@@ -51,7 +52,7 @@ export function ProjectForm({ onClose, onSave, existingMaterials = [] }: Project
 
   const handleMaterialsUploaded = (materials: ProjectMaterial[]) => {
     setProjectMaterials(materials);
-    console.log("Materiais carregados para o projeto:", materials);
+    console.log("Materials loaded for project:", materials);
   };
 
   return (

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,9 +47,10 @@ export function ProjectUpload({ onMaterialsUploaded, existingMaterials = [] }: P
     const normalizedExcelName = normalizeText(excelMaterial.name);
     const normalizedExcelManufacturer = normalizeText(excelMaterial.manufacturer);
 
-    console.log('Procurando material:', {
+    console.log('Searching for material:', {
       excel: { name: normalizedExcelName, manufacturer: normalizedExcelManufacturer },
-      original: { name: excelMaterial.name, manufacturer: excelMaterial.manufacturer }
+      original: { name: excelMaterial.name, manufacturer: excelMaterial.manufacturer },
+      databaseCount: databaseMaterials.length
     });
 
     const match = databaseMaterials.find(dbMaterial => {
@@ -61,14 +61,14 @@ export function ProjectUpload({ onMaterialsUploaded, existingMaterials = [] }: P
       const manufacturerMatch = normalizedDbManufacturer === normalizedExcelManufacturer;
       
       if (nameMatch && manufacturerMatch) {
-        console.log('Material encontrado na base de dados:', dbMaterial);
+        console.log('Material found in database:', dbMaterial);
         return true;
       }
       return false;
     });
 
     if (!match) {
-      console.log('Material não encontrado na base de dados para:', excelMaterial.name, excelMaterial.manufacturer);
+      console.log('Material not found in database for:', excelMaterial.name, excelMaterial.manufacturer);
     }
 
     return match;
@@ -92,6 +92,8 @@ export function ProjectUpload({ onMaterialsUploaded, existingMaterials = [] }: P
     setProcessingResults(null);
 
     try {
+      console.log('Processing Excel file with', existingMaterials.length, 'existing materials');
+      
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data);
       const sheetName = workbook.SheetNames[0];
@@ -112,9 +114,8 @@ export function ProjectUpload({ onMaterialsUploaded, existingMaterials = [] }: P
 
       rows.forEach((row, index) => {
         try {
-          const rowNumber = index + 2; // +2 because we skipped header and arrays are 0-indexed
+          const rowNumber = index + 2;
           
-          // Extract data from Excel columns (A=0, B=1, C=2, D=3, E=4, F=5)
           const id = row[0]?.toString().trim() || '';
           const name = row[1]?.toString().trim() || '';
           const manufacturer = row[2]?.toString().trim() || '';
@@ -122,20 +123,17 @@ export function ProjectUpload({ onMaterialsUploaded, existingMaterials = [] }: P
           const m3 = row[4] ? parseFloat(row[4].toString()) : undefined;
           const units = row[5] ? parseFloat(row[5].toString()) : undefined;
 
-          // Skip completely empty rows
           if (!id && !name && !manufacturer && !m2 && !m3 && !units) {
             return;
           }
 
           validRowsCount++;
 
-          // Validate required fields only for non-empty rows
           if (!name || !manufacturer) {
             errors.push(`Linha ${rowNumber}: Nome e Fabricante são obrigatórios`);
             return;
           }
 
-          // Validate that at least one quantity field has a value
           if (!m2 && !m3 && !units) {
             errors.push(`Linha ${rowNumber}: Pelo menos um campo de quantidade (M², M³ ou Unidades) deve ser preenchido`);
             return;
@@ -156,9 +154,9 @@ export function ProjectUpload({ onMaterialsUploaded, existingMaterials = [] }: P
 
           if (matchingMaterial) {
             matchedCount++;
-            console.log(`Material correspondente encontrado: ${name} - ${manufacturer}`);
+            console.log(`Material match found: ${name} - ${manufacturer}`);
           } else {
-            console.log(`Material não encontrado na base de dados: ${name} - ${manufacturer}`);
+            console.log(`Material not found in database: ${name} - ${manufacturer}`);
           }
 
           processedMaterials.push(projectMaterial);
@@ -174,8 +172,8 @@ export function ProjectUpload({ onMaterialsUploaded, existingMaterials = [] }: P
         errors: errors
       };
 
-      console.log('Resultados do processamento:', results);
-      console.log('Materiais processados:', processedMaterials);
+      console.log('Processing results:', results);
+      console.log('Processed materials:', processedMaterials);
 
       setUploadedMaterials(processedMaterials);
       setProcessingResults(results);
