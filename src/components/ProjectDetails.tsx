@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Eye, FileText } from "lucide-react";
 import { MaterialDetails } from "@/components/MaterialDetails";
+import { EvaluationDetails } from "@/components/EvaluationDetails";
 
 interface ProjectMaterial {
   id: string;
@@ -54,13 +55,14 @@ interface ProjectDetailsProps {
 
 export function ProjectDetails({ project, onClose, materials, onEditMaterial, onDeleteMaterial }: ProjectDetailsProps) {
   const [selectedMaterial, setSelectedMaterial] = useState<Material | null>(null);
+  const [selectedEvaluation, setSelectedEvaluation] = useState<Evaluation | null>(null);
 
   const normalizeText = (text: string) => {
     return text
       .toLowerCase()
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
-      .replace(/\s+/g, ' ')
+      .replace(/[^a-z0-9]/g, '')
       .trim();
   };
 
@@ -116,6 +118,16 @@ export function ProjectDetails({ project, onClose, materials, onEditMaterial, on
   };
 
   const sortedProjectMaterials = [...project.materials].sort((a, b) => a.id.localeCompare(b.id));
+
+  if (selectedEvaluation) {
+    return (
+      <EvaluationDetails
+        evaluation={selectedEvaluation}
+        onClose={() => setSelectedEvaluation(null)}
+        onOpenFile={openFileExplorer}
+      />
+    );
+  }
 
   if (selectedMaterial) {
     return (
@@ -252,12 +264,13 @@ export function ProjectDetails({ project, onClose, materials, onEditMaterial, on
                               <span className="text-gray-300 text-sm">Avaliações:</span>
                               <div className="flex flex-wrap gap-2 mt-1">
                                 {dbMaterial.evaluations.map((evaluation) => (
-                                  <span 
+                                  <button
                                     key={evaluation.id}
-                                    className={`text-xs px-2 py-1 rounded bg-[#525252] ${getEvaluationColor(evaluation, project.startDate, project.endDate)}`}
+                                    onClick={() => setSelectedEvaluation(evaluation)}
+                                    className={`text-xs px-2 py-1 rounded bg-[#525252] hover:bg-[#626262] transition-colors ${getEvaluationColor(evaluation, project.startDate, project.endDate)} cursor-pointer`}
                                   >
                                     {evaluation.type} v{evaluation.version}
-                                  </span>
+                                  </button>
                                 ))}
                               </div>
                             </div>

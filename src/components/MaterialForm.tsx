@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,6 +45,16 @@ export function MaterialForm({ material, onClose, onSave }) {
         description: material.description || '',
         evaluations: material.evaluations || []
       });
+    } else {
+      // Reset form for new material
+      setFormData({
+        name: '',
+        manufacturer: '',
+        category: '',
+        subcategory: '',
+        description: '',
+        evaluations: []
+      });
     }
   }, [material]);
 
@@ -62,7 +73,6 @@ export function MaterialForm({ material, onClose, onSave }) {
     
     if (booleanFields.length === 0) return 100;
     
-    // Filter valid fields based on evaluation subtype
     const validFields = getValidFieldsForSubtype(evaluation.type, evaluation[getSubtypeField(evaluation.type)], booleanFields);
     
     if (validFields.length === 0) return 100;
@@ -85,14 +95,10 @@ export function MaterialForm({ material, onClose, onSave }) {
   };
 
   const getValidFieldsForSubtype = (type, subtype, allFields) => {
-    // This function should filter fields based on the subtype rules you specified
-    // Implementation would be extensive based on your specifications
-    return allFields; // Simplified for now
+    return allFields;
   };
 
   const getEvaluationFields = (type) => {
-    // Return field definitions for each evaluation type
-    // This is a simplified version - full implementation would include all fields from your specifications
     const fieldDefinitions = {
       'EPD': [
         { key: 'epdType', type: 'select', label: 'EPD Type', options: ['Not compliant', 'Product specific LCA', 'Industry-wide/generic EPD', 'Product-specific Type III Internal EPD', 'Product Specific Type III External EPD'] },
@@ -100,7 +106,6 @@ export function MaterialForm({ material, onClose, onSave }) {
         { key: 'epdOwner', type: 'boolean', label: 'EPD owner' },
         { key: 'programOperator', type: 'boolean', label: 'Program operator' },
         { key: 'referencePcr', type: 'boolean', label: 'Reference PCR' },
-        // ... more fields as per specifications
       ],
       'C2C': [
         { key: 'c2cType', type: 'select', label: 'C2C Type', options: ['Not compliant', 'Material Health Certificate v3 at the Bronze level', 'C2C Certified v3 with Material Health at Bronze level', 'Material Health Certificate v3 at Silver level', 'C2C Certified v3 with Material Health at Silver level'] },
@@ -112,7 +117,6 @@ export function MaterialForm({ material, onClose, onSave }) {
         { key: 'documentId', type: 'boolean', label: 'Document ID' },
         { key: 'inventoryAssessed', type: 'boolean', label: 'Inventory assessed at 0,1wt.% or 1000ppm' },
       ]
-      // ... more evaluation types
     };
     
     return fieldDefinitions[type] || [];
@@ -122,12 +126,10 @@ export function MaterialForm({ material, onClose, onSave }) {
     e.preventDefault();
     console.log('Saving material with data:', formData);
     
-    // Ensure all evaluation data is properly saved
     const savedMaterial = {
       ...formData,
       evaluations: formData.evaluations.map(evaluation => ({
         ...evaluation,
-        // Ensure all fields are preserved
         id: evaluation.id || Date.now() + Math.random()
       }))
     };
@@ -151,7 +153,6 @@ export function MaterialForm({ material, onClose, onSave }) {
       validTo: '',
       conformity: 0,
       geographicArea: 'Global',
-      // Initialize all fields based on evaluation type
       ...getInitialEvaluationFields(type)
     };
     
@@ -171,6 +172,7 @@ export function MaterialForm({ material, onClose, onSave }) {
   };
 
   const updateEvaluation = (index, evaluationData) => {
+    console.log('Updating evaluation at index', index, 'with data:', evaluationData);
     setFormData(prev => ({
       ...prev,
       evaluations: prev.evaluations.map((currentEvaluation, i) => 
@@ -247,7 +249,7 @@ export function MaterialForm({ material, onClose, onSave }) {
     setFormData(prev => ({
       ...prev,
       category: value,
-      subcategory: '' // Reset subcategory when category changes
+      subcategory: ''
     }));
   };
 
@@ -332,7 +334,6 @@ export function MaterialForm({ material, onClose, onSave }) {
             />
           </div>
 
-          {/* Enhanced Evaluations Section with better conformity calculation */}
           <div>
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold">Evaluations</h3>
