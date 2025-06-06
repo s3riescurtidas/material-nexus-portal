@@ -25,10 +25,10 @@ interface EvaluationData {
   fileName?: string;
   // EPD specific fields
   epdType?: string;
-  documentId?: boolean;
-  epdOwner?: boolean;
-  programOperator?: boolean;
-  referencePcr?: boolean;
+  documentId?: string;
+  epdOwner?: string;
+  programOperator?: string;
+  referencePcr?: string;
   manufacturerRecognized?: boolean;
   includeFunctionalUnit?: boolean;
   manufacturingLocations?: boolean;
@@ -157,7 +157,7 @@ export function EvaluationForm({ evaluation, onClose, onSave }: EvaluationFormPr
           return currentFormData.lcaOptimizationType === 'Verified impact reductions in GWP';
         }
         if (fieldName === 'reductionGwp20' || fieldName === 'reductionAdditionalCategories') {
-          return currentFormData.lcaOptimizationType === 'Verified impact reduction in GWP > 20% + in two other > 5%';
+          return currentFormData.lcaOptimizationType === 'Verified impact reduction in GWP {\'>\'}20% + in two other {\'>\'}5%';
         }
         return true;
         
@@ -369,7 +369,7 @@ export function EvaluationForm({ evaluation, onClose, onSave }: EvaluationFormPr
                   <SelectContent className="bg-[#323232] border-[#424242] text-white">
                     <SelectItem value="LCA impact reduction action plan">LCA impact reduction action plan</SelectItem>
                     <SelectItem value="Verified impact reductions in GWP">Verified impact reductions in GWP</SelectItem>
-                    <SelectItem value="Verified impact reduction in GWP > 20% + in two other > 5%">Verified impact reduction in GWP > 20% + in two other > 5%</SelectItem>
+                    <SelectItem value="Verified impact reduction in GWP {'>'}20% + in two other {'>'}5%">Verified impact reduction in GWP {'>'}20% + in two other {'>'}5%</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
