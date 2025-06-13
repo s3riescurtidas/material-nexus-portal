@@ -324,11 +324,13 @@ export function MaterialForm({ material, onClose, onSave }) {
               <Label htmlFor="manufacturer">Manufacturer</Label>
               <Select value={formData.manufacturer} onValueChange={(value) => handleInputChange('manufacturer', value)}>
                 <SelectTrigger className="bg-[#323232] border-[#424242] text-white">
-                  <SelectValue placeholder="Select manufacturer" />
+                  <SelectValue placeholder="Select manufacturer">
+                    {formData.manufacturer || "Select manufacturer"}
+                  </SelectValue>
                 </SelectTrigger>
-                <SelectContent className="bg-[#323232] border-[#424242]">
+                <SelectContent className="bg-[#323232] border-[#424242] z-50">
                   {config.manufacturers.map(mfg => (
-                    <SelectItem key={mfg} value={mfg} className="text-white">{mfg}</SelectItem>
+                    <SelectItem key={mfg} value={mfg} className="text-white hover:bg-[#424242]">{mfg}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -338,11 +340,13 @@ export function MaterialForm({ material, onClose, onSave }) {
               <Label htmlFor="category">Category</Label>
               <Select value={formData.category} onValueChange={handleCategoryChange}>
                 <SelectTrigger className="bg-[#323232] border-[#424242] text-white">
-                  <SelectValue placeholder="Select category" />
+                  <SelectValue placeholder="Select category">
+                    {formData.category || "Select category"}
+                  </SelectValue>
                 </SelectTrigger>
-                <SelectContent className="bg-[#323232] border-[#424242]">
+                <SelectContent className="bg-[#323232] border-[#424242] z-50">
                   {config.categories.map(cat => (
-                    <SelectItem key={cat} value={cat} className="text-white">{cat}</SelectItem>
+                    <SelectItem key={cat} value={cat} className="text-white hover:bg-[#424242]">{cat}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -352,11 +356,13 @@ export function MaterialForm({ material, onClose, onSave }) {
               <Label htmlFor="subcategory" className="text-white">Subcategoria</Label>
               <Select value={formData.subcategory} onValueChange={(value) => handleInputChange('subcategory', value)}>
                 <SelectTrigger className="bg-[#323232] border-[#424242] text-white">
-                  <SelectValue placeholder="Selecionar subcategoria" />
+                  <SelectValue placeholder="Selecionar subcategoria">
+                    {formData.subcategory || "Selecionar subcategoria"}
+                  </SelectValue>
                 </SelectTrigger>
-                <SelectContent className="bg-[#323232] border-[#424242]">
+                <SelectContent className="bg-[#323232] border-[#424242] z-50">
                   {availableSubcategories.map(sub => (
-                    <SelectItem key={sub} value={sub} className="text-white">{sub}</SelectItem>
+                    <SelectItem key={sub} value={sub} className="text-white hover:bg-[#424242]">{sub}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
