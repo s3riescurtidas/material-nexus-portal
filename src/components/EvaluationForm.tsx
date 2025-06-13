@@ -30,10 +30,11 @@ export function EvaluationForm({ evaluation, onClose, onSave }: EvaluationFormPr
 
   useEffect(() => {
     if (evaluation) {
+      const initialFields = getInitialEvaluationFields(evaluation.type);
       setFormData({
-        ...getInitialEvaluationFields(evaluation.type),
+        ...initialFields,
         ...evaluation,
-        conformity: evaluation.conformity || 0,
+        conformity: evaluation.conformity || (evaluation.type === 'Global Green Tag Product Health Declaration' || evaluation.type === 'FSC / PEFC' || evaluation.type === 'ECOLABEL' ? 100 : 0),
         geographicArea: evaluation.geographicArea || 'Global',
       });
     }
@@ -76,12 +77,29 @@ export function EvaluationForm({ evaluation, onClose, onSave }: EvaluationFormPr
     const validFields = getValidFieldsForSubtype(formData.type, formData);
     
     if (validFields.length === 0) {
-      setFormData((prev: any) => ({ ...prev, conformity: 100 }));
+      const defaultConformity = formData.type === 'Global Green Tag Product Health Declaration' || 
+                               formData.type === 'FSC / PEFC' || 
+                               formData.type === 'ECOLABEL' ? 100 : 0;
+      setFormData((prev: any) => ({ ...prev, conformity: defaultConformity }));
       return;
     }
     
-    const trueCount = validFields.filter(field => formData[field] === true).length;
-    const conformityPercentage = Math.round((trueCount / validFields.length) * 100);
+    let totalPoints = 0;
+    let achievedPoints = 0;
+
+    validFields.forEach(field => {
+      totalPoints++;
+      if (field.startsWith('c2c') && field.includes('Score')) {
+        // C2C score fields give 1 point if not "None"
+        if (formData[field] && formData[field] !== 'None') {
+          achievedPoints++;
+        }
+      } else if (formData[field] === true) {
+        achievedPoints++;
+      }
+    });
+    
+    const conformityPercentage = totalPoints > 0 ? Math.round((achievedPoints / totalPoints) * 100) : 0;
     
     setFormData((prev: any) => ({ ...prev, conformity: conformityPercentage }));
   };
@@ -93,7 +111,7 @@ export function EvaluationForm({ evaluation, onClose, onSave }: EvaluationFormPr
       'Manufacturer Inventory': ['documentId', 'inventoryAssessed1000ppm', 'inventoryAssessed100ppm', 'allIngredientsName', 'allIngredientsCasrn', 'ingredientRoleAmount', 'hazardScoreClass', 'noGreenScreenLt1', 'greenScreen95wt', 'remaining5Inventoried', 'externalIndependentReviewer'],
       'REACH Optimization': ['documentId', 'inventoryAssessed100ppm', 'noAuthorizationListXiv', 'noAuthorizationListXvii', 'noSvhcCandidateList', 'identificationAuthor'],
       'Health Product Declaration': ['documentId', 'inventoryAssessed1000ppm', 'inventoryAssessed100ppm', 'hazardsFullDisclosed', 'noGreenScreenLt1', 'greenScreen95wt', 'remaining5Inventoried', 'externalIndependentReviewer'],
-      'C2C': ['documentId', 'inventoryAssessed1000ppm'],
+      'C2C': ['documentId', 'inventoryAssessed1000ppm', 'c2cCleanAirScore', 'c2cWaterSoilScore', 'c2cSocialFairnessScore', 'c2cProductCircularityScore'],
       'Declare': ['documentId', 'inventoryAssessed1000ppm', 'externalIndependentReviewer']
     };
     
@@ -133,6 +151,70 @@ export function EvaluationForm({ evaluation, onClose, onSave }: EvaluationFormPr
           }
           if (field === 'reductionGwp20' || field === 'reductionAdditionalCategories') {
             return data.lcaOptimizationType === 'Verified impact reduction in GWP > 20% + in two other > 5%';
+          }
+          return true;
+        });
+
+      case 'Manufacturer Inventory':
+        if (data.manufacturerInventoryType === 'Not compliant') return [];
+        return allFields.filter(field => {
+          if (field === 'inventoryAssessed1000ppm') {
+            return data.manufacturerInventoryType === 'Self-declared manufacturer Inventory' || data.manufacturerInventoryType === 'Verified manufacturer Inventory';
+          }
+          if (field === 'inventoryAssessed100ppm') {
+            return data.manufacturerInventoryType === 'Verified advanced manufacturer Inventory' || data.manufacturerInventoryType === 'Verified ingredient optimized manufacturer Inventory';
+          }
+          if (field === 'noGreenScreenLt1') {
+            return data.manufacturerInventoryType === 'Verified advanced manufacturer Inventory';
+          }
+          if (field === 'greenScreen95wt' || field === 'remaining5Inventoried') {
+            return data.manufacturerInventoryType === 'Verified ingredient optimized manufacturer Inventory';
+          }
+          if (field === 'externalIndependentReviewer') {
+            return data.manufacturerInventoryType !== 'Self-declared manufacturer Inventory';
+          }
+          return true;
+        });
+
+      case 'REACH Optimization':
+        if (data.reportType === 'Not compliant') return [];
+        return allFields.filter(field => {
+          if (field === 'identificationAuthor') {
+            return data.reportType !== "Manufacturer's report";
+          }
+          return true;
+        });
+
+      case 'Health Product Declaration':
+        if (data.hpdType === 'Not compliant') return [];
+        return allFields.filter(field => {
+          if (field === 'inventoryAssessed1000ppm') {
+            return data.hpdType === 'Published HPD' || data.hpdType === 'Verified HPD';
+          }
+          if (field === 'inventoryAssessed100ppm') {
+            return data.hpdType === 'Verified advanced HPD' || data.hpdType === 'Verified ingredient optimized HPD';
+          }
+          if (field === 'noGreenScreenLt1') {
+            return data.hpdType === 'Verified advanced HPD';
+          }
+          if (field === 'greenScreen95wt' || field === 'remaining5Inventoried') {
+            return data.hpdType === 'Verified ingredient optimized HPD';
+          }
+          if (field === 'externalIndependentReviewer') {
+            return data.hpdType !== 'Published HPD';
+          }
+          return true;
+        });
+
+      case 'C2C':
+        if (data.c2cType === 'Not compliant') return [];
+        return allFields;
+
+      case 'Declare':
+        if (data.declareType === 'Not compliant') return [];
+        return allFields.filter(field => {
+          if (field === 'externalIndependentReviewer') {
+            return ['Verified Declared', 'Verified LBC Compliant (aka LBC Red List Approved)', 'Verified Red List Free (aka LBC Red List Free)'].includes(data.declareType);
           }
           return true;
         });
@@ -237,11 +319,11 @@ export function EvaluationForm({ evaluation, onClose, onSave }: EvaluationFormPr
         return {
           ...baseFields,
           c2cType: '',
-          cleanAirScore: 'None',
-          waterSoilScore: 'None',
-          socialFairnessScore: 'None',
-          productCircularityScore: 'None',
-          additionalAchievement: '',
+          c2cCleanAirScore: 'None',
+          c2cWaterSoilScore: 'None',
+          c2cSocialFairnessScore: 'None',
+          c2cProductCircularityScore: 'None',
+          c2cAdditionalAchievement: '',
           documentId: false,
           inventoryAssessed1000ppm: false,
           c2cFile: ''
@@ -289,8 +371,8 @@ export function EvaluationForm({ evaluation, onClose, onSave }: EvaluationFormPr
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Only calculate conformity if it's 0 or not set
-    if (formData.conformity === 0) {
+    // Only calculate conformity if it's 0 or not set for types that have scoring
+    if (formData.conformity === 0 && !['Global Green Tag Product Health Declaration', 'FSC / PEFC', 'ECOLABEL'].includes(formData.type)) {
       calculateConformity();
     }
     
@@ -483,7 +565,7 @@ export function EvaluationForm({ evaluation, onClose, onSave }: EvaluationFormPr
                   <SelectItem value="Not compliant">Not compliant</SelectItem>
                   <SelectItem value="LCA impact reduction action plan">LCA impact reduction action plan</SelectItem>
                   <SelectItem value="Verified impact reductions in GWP">Verified impact reductions in GWP</SelectItem>
-                  <SelectItem value="Verified impact reduction in GWP > 10%">Verified impact reduction in GWP {'>'}10%</SelectItem>
+                  <SelectItem value="Verified impact reduction in GWP > 10%">Verified impact reduction in GWP {'>'} 10%</SelectItem>
                   <SelectItem value="Verified impact reduction in GWP > 20% + in two other > 5%">Verified impact reduction in GWP {'>'} 20% + in two other {'>'} 5%</SelectItem>
                 </SelectContent>
               </Select>
@@ -620,8 +702,533 @@ export function EvaluationForm({ evaluation, onClose, onSave }: EvaluationFormPr
             )}
           </>
         );
+
+      case 'Manufacturer Inventory':
+        return (
+          <>
+            <div>
+              <Label htmlFor="manufacturerInventoryType">Manufacturer Inventory Type</Label>
+              <Select value={formData.manufacturerInventoryType || ''} onValueChange={(value) => handleInputChange('manufacturerInventoryType', value)}>
+                <SelectTrigger className="bg-[#323232] border-[#424242] text-white">
+                  <SelectValue placeholder="Select Manufacturer Inventory Type" />
+                </SelectTrigger>
+                <SelectContent className="bg-[#323232] border-[#424242] text-white">
+                  <SelectItem value="Not compliant">Not compliant</SelectItem>
+                  <SelectItem value="Self-declared manufacturer Inventory">Self-declared manufacturer Inventory</SelectItem>
+                  <SelectItem value="Verified manufacturer Inventory">Verified manufacturer Inventory</SelectItem>
+                  <SelectItem value="Verified advanced manufacturer Inventory">Verified advanced manufacturer Inventory</SelectItem>
+                  <SelectItem value="Verified ingredient optimized manufacturer Inventory">Verified ingredient optimized manufacturer Inventory</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="documentId"
+                  checked={formData.documentId || false}
+                  onCheckedChange={(checked) => handleInputChange('documentId', checked)}
+                />
+                <Label htmlFor="documentId">Document ID</Label>
+              </div>
+              {(formData.manufacturerInventoryType === 'Self-declared manufacturer Inventory' || formData.manufacturerInventoryType === 'Verified manufacturer Inventory') && (
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="inventoryAssessed1000ppm"
+                    checked={formData.inventoryAssessed1000ppm || false}
+                    onCheckedChange={(checked) => handleInputChange('inventoryAssessed1000ppm', checked)}
+                  />
+                  <Label htmlFor="inventoryAssessed1000ppm">Inventory assessed at 0,1 wt.% or 1000ppm</Label>
+                </div>
+              )}
+              {(formData.manufacturerInventoryType === 'Verified advanced manufacturer Inventory' || formData.manufacturerInventoryType === 'Verified ingredient optimized manufacturer Inventory') && (
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="inventoryAssessed100ppm"
+                    checked={formData.inventoryAssessed100ppm || false}
+                    onCheckedChange={(checked) => handleInputChange('inventoryAssessed100ppm', checked)}
+                  />
+                  <Label htmlFor="inventoryAssessed100ppm">Inventory assessed at 0,1 wt.% or 100ppm</Label>
+                </div>
+              )}
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="allIngredientsName"
+                  checked={formData.allIngredientsName || false}
+                  onCheckedChange={(checked) => handleInputChange('allIngredientsName', checked)}
+                />
+                <Label htmlFor="allIngredientsName">All ingredients identified by name</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="allIngredientsCasrn"
+                  checked={formData.allIngredientsCasrn || false}
+                  onCheckedChange={(checked) => handleInputChange('allIngredientsCasrn', checked)}
+                />
+                <Label htmlFor="allIngredientsCasrn">All ingredients identified by CASRN or EC Number</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="ingredientRoleAmount"
+                  checked={formData.ingredientRoleAmount || false}
+                  onCheckedChange={(checked) => handleInputChange('ingredientRoleAmount', checked)}
+                />
+                <Label htmlFor="ingredientRoleAmount">Ingredient / chemical role and amount disclosed</Label>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="hazardScoreClass"
+                  checked={formData.hazardScoreClass || false}
+                  onCheckedChange={(checked) => handleInputChange('hazardScoreClass', checked)}
+                />
+                <Label htmlFor="hazardScoreClass">Hazard score / class disclosed</Label>
+              </div>
+              {formData.manufacturerInventoryType === 'Verified advanced manufacturer Inventory' && (
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="noGreenScreenLt1"
+                    checked={formData.noGreenScreenLt1 || false}
+                    onCheckedChange={(checked) => handleInputChange('noGreenScreenLt1', checked)}
+                  />
+                  <Label htmlFor="noGreenScreenLt1">No GreenScreen LT-1 hazards are present</Label>
+                </div>
+              )}
+              {formData.manufacturerInventoryType === 'Verified ingredient optimized manufacturer Inventory' && (
+                <>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="greenScreen95wt"
+                      checked={formData.greenScreen95wt || false}
+                      onCheckedChange={(checked) => handleInputChange('greenScreen95wt', checked)}
+                    />
+                    <Label htmlFor="greenScreen95wt">{'>'}95wt.% is assessed using GreenScreen and no BM-1 hazards are present</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="remaining5Inventoried"
+                      checked={formData.remaining5Inventoried || false}
+                      onCheckedChange={(checked) => handleInputChange('remaining5Inventoried', checked)}
+                    />
+                    <Label htmlFor="remaining5Inventoried">Remaining 5% is inventoried and no GreenScreen LT-1 hazards are present</Label>
+                  </div>
+                </>
+              )}
+            </div>
+            
+            {formData.manufacturerInventoryType !== 'Self-declared manufacturer Inventory' && (
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="externalIndependentReviewer"
+                  checked={formData.externalIndependentReviewer || false}
+                  onCheckedChange={(checked) => handleInputChange('externalIndependentReviewer', checked)}
+                />
+                <Label htmlFor="externalIndependentReviewer">Identification of the external independent reviewer</Label>
+              </div>
+            )}
+          </>
+        );
+
+      case 'REACH Optimization':
+        return (
+          <>
+            <div>
+              <Label htmlFor="reportType">Report Type</Label>
+              <Select value={formData.reportType || ''} onValueChange={(value) => handleInputChange('reportType', value)}>
+                <SelectTrigger className="bg-[#323232] border-[#424242] text-white">
+                  <SelectValue placeholder="Select Report Type" />
+                </SelectTrigger>
+                <SelectContent className="bg-[#323232] border-[#424242] text-white">
+                  <SelectItem value="Not compliant">Not compliant</SelectItem>
+                  <SelectItem value="Manufacturer's report">Manufacturer's report</SelectItem>
+                  <SelectItem value="Other report">Other report</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="documentId"
+                  checked={formData.documentId || false}
+                  onCheckedChange={(checked) => handleInputChange('documentId', checked)}
+                />
+                <Label htmlFor="documentId">Document ID</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="inventoryAssessed100ppm"
+                  checked={formData.inventoryAssessed100ppm || false}
+                  onCheckedChange={(checked) => handleInputChange('inventoryAssessed100ppm', checked)}
+                />
+                <Label htmlFor="inventoryAssessed100ppm">Inventory assessed at 0,01 wt.% or 100ppm</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="noAuthorizationListXiv"
+                  checked={formData.noAuthorizationListXiv || false}
+                  onCheckedChange={(checked) => handleInputChange('noAuthorizationListXiv', checked)}
+                />
+                <Label htmlFor="noAuthorizationListXiv">No substances found on the Authorization list - Annex XIV</Label>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="noAuthorizationListXvii"
+                  checked={formData.noAuthorizationListXvii || false}
+                  onCheckedChange={(checked) => handleInputChange('noAuthorizationListXvii', checked)}
+                />
+                <Label htmlFor="noAuthorizationListXvii">No substances found on the Authorization list - Annex XVII</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="noSvhcCandidateList"
+                  checked={formData.noSvhcCandidateList || false}
+                  onCheckedChange={(checked) => handleInputChange('noSvhcCandidateList', checked)}
+                />
+                <Label htmlFor="noSvhcCandidateList">No substances found on the SVHC candidate list</Label>
+              </div>
+              {formData.reportType !== "Manufacturer's report" && (
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="identificationAuthor"
+                    checked={formData.identificationAuthor || false}
+                    onCheckedChange={(checked) => handleInputChange('identificationAuthor', checked)}
+                  />
+                  <Label htmlFor="identificationAuthor">Identification of the author of the report</Label>
+                </div>
+              )}
+            </div>
+          </>
+        );
+
+      case 'Health Product Declaration':
+        return (
+          <>
+            <div>
+              <Label htmlFor="hpdType">HPD Type</Label>
+              <Select value={formData.hpdType || ''} onValueChange={(value) => handleInputChange('hpdType', value)}>
+                <SelectTrigger className="bg-[#323232] border-[#424242] text-white">
+                  <SelectValue placeholder="Select HPD Type" />
+                </SelectTrigger>
+                <SelectContent className="bg-[#323232] border-[#424242] text-white">
+                  <SelectItem value="Not compliant">Not compliant</SelectItem>
+                  <SelectItem value="Published HPD">Published HPD</SelectItem>
+                  <SelectItem value="Verified HPD">Verified HPD</SelectItem>
+                  <SelectItem value="Verified advanced HPD">Verified advanced HPD</SelectItem>
+                  <SelectItem value="Verified ingredient optimized HPD">Verified ingredient optimized HPD</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="documentId"
+                  checked={formData.documentId || false}
+                  onCheckedChange={(checked) => handleInputChange('documentId', checked)}
+                />
+                <Label htmlFor="documentId">Document ID</Label>
+              </div>
+              {(formData.hpdType === 'Published HPD' || formData.hpdType === 'Verified HPD') && (
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="inventoryAssessed1000ppm"
+                    checked={formData.inventoryAssessed1000ppm || false}
+                    onCheckedChange={(checked) => handleInputChange('inventoryAssessed1000ppm', checked)}
+                  />
+                  <Label htmlFor="inventoryAssessed1000ppm">Inventory assessed at 0,01 wt.% or 1000ppm</Label>
+                </div>
+              )}
+              {(formData.hpdType === 'Verified advanced HPD' || formData.hpdType === 'Verified ingredient optimized HPD') && (
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="inventoryAssessed100ppm"
+                    checked={formData.inventoryAssessed100ppm || false}
+                    onCheckedChange={(checked) => handleInputChange('inventoryAssessed100ppm', checked)}
+                  />
+                  <Label htmlFor="inventoryAssessed100ppm">Inventory assessed at 0,01 wt.% or 100ppm</Label>
+                </div>
+              )}
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="hazardsFullDisclosed"
+                  checked={formData.hazardsFullDisclosed || false}
+                  onCheckedChange={(checked) => handleInputChange('hazardsFullDisclosed', checked)}
+                />
+                <Label htmlFor="hazardsFullDisclosed">Hazards full disclosed in compliance with the HPD Open Standard</Label>
+              </div>
+              {formData.hpdType === 'Verified advanced HPD' && (
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="noGreenScreenLt1"
+                    checked={formData.noGreenScreenLt1 || false}
+                    onCheckedChange={(checked) => handleInputChange('noGreenScreenLt1', checked)}
+                  />
+                  <Label htmlFor="noGreenScreenLt1">No GreenScreen LT-1 hazards are present</Label>
+                </div>
+              )}
+              {formData.hpdType === 'Verified ingredient optimized HPD' && (
+                <>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="greenScreen95wt"
+                      checked={formData.greenScreen95wt || false}
+                      onCheckedChange={(checked) => handleInputChange('greenScreen95wt', checked)}
+                    />
+                    <Label htmlFor="greenScreen95wt">{'>'}95wt.% is assessed using GreenScreen and no BM-1 hazards are present</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="remaining5Inventoried"
+                      checked={formData.remaining5Inventoried || false}
+                      onCheckedChange={(checked) => handleInputChange('remaining5Inventoried', checked)}
+                    />
+                    <Label htmlFor="remaining5Inventoried">Remaining 5% is inventoried and no GreenScreen LT-1 hazards are present</Label>
+                  </div>
+                </>
+              )}
+            </div>
+            
+            {formData.hpdType !== 'Published HPD' && (
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="externalIndependentReviewer"
+                  checked={formData.externalIndependentReviewer || false}
+                  onCheckedChange={(checked) => handleInputChange('externalIndependentReviewer', checked)}
+                />
+                <Label htmlFor="externalIndependentReviewer">Identification of external independent reviewer</Label>
+              </div>
+            )}
+          </>
+        );
+
+      case 'C2C':
+        return (
+          <>
+            <div>
+              <Label htmlFor="c2cType">C2C Type</Label>
+              <Select value={formData.c2cType || ''} onValueChange={(value) => handleInputChange('c2cType', value)}>
+                <SelectTrigger className="bg-[#323232] border-[#424242] text-white">
+                  <SelectValue placeholder="Select C2C Type" />
+                </SelectTrigger>
+                <SelectContent className="bg-[#323232] border-[#424242] text-white">
+                  <SelectItem value="Not compliant">Not compliant</SelectItem>
+                  <SelectItem value="Material Health Certificate v3 at the Bronze level">Material Health Certificate v3 at the Bronze level</SelectItem>
+                  <SelectItem value="C2C Certified v3 with Material Health at Bronze level">C2C Certified v3 with Material Health at Bronze level</SelectItem>
+                  <SelectItem value="Material Health Certificate v3 at Silver level">Material Health Certificate v3 at Silver level</SelectItem>
+                  <SelectItem value="C2C Certified v3 with Material Health at Silver level">C2C Certified v3 with Material Health at Silver level</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="c2cCleanAirScore">Clean Air and Climate Protection</Label>
+                <Select value={formData.c2cCleanAirScore || 'None'} onValueChange={(value) => handleInputChange('c2cCleanAirScore', value)}>
+                  <SelectTrigger className="bg-[#323232] border-[#424242] text-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#323232] border-[#424242] text-white">
+                    <SelectItem value="None">None</SelectItem>
+                    <SelectItem value="Score 1">Score 1</SelectItem>
+                    <SelectItem value="Score 2">Score 2</SelectItem>
+                    <SelectItem value="Score 3">Score 3</SelectItem>
+                    <SelectItem value="Score 4">Score 4</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="c2cWaterSoilScore">Water and Soil Stewardship</Label>
+                <Select value={formData.c2cWaterSoilScore || 'None'} onValueChange={(value) => handleInputChange('c2cWaterSoilScore', value)}>
+                  <SelectTrigger className="bg-[#323232] border-[#424242] text-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#323232] border-[#424242] text-white">
+                    <SelectItem value="None">None</SelectItem>
+                    <SelectItem value="Score 1">Score 1</SelectItem>
+                    <SelectItem value="Score 2">Score 2</SelectItem>
+                    <SelectItem value="Score 3">Score 3</SelectItem>
+                    <SelectItem value="Score 4">Score 4</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="c2cSocialFairnessScore">Social Fairness</Label>
+                <Select value={formData.c2cSocialFairnessScore || 'None'} onValueChange={(value) => handleInputChange('c2cSocialFairnessScore', value)}>
+                  <SelectTrigger className="bg-[#323232] border-[#424242] text-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#323232] border-[#424242] text-white">
+                    <SelectItem value="None">None</SelectItem>
+                    <SelectItem value="Score 1">Score 1</SelectItem>
+                    <SelectItem value="Score 2">Score 2</SelectItem>
+                    <SelectItem value="Score 3">Score 3</SelectItem>
+                    <SelectItem value="Score 4">Score 4</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="c2cProductCircularityScore">Product Circularity</Label>
+                <Select value={formData.c2cProductCircularityScore || 'None'} onValueChange={(value) => handleInputChange('c2cProductCircularityScore', value)}>
+                  <SelectTrigger className="bg-[#323232] border-[#424242] text-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#323232] border-[#424242] text-white">
+                    <SelectItem value="None">None</SelectItem>
+                    <SelectItem value="Score 1">Score 1</SelectItem>
+                    <SelectItem value="Score 2">Score 2</SelectItem>
+                    <SelectItem value="Score 3">Score 3</SelectItem>
+                    <SelectItem value="Score 4">Score 4</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            
+            <div>
+              <Label htmlFor="c2cAdditionalAchievement">Additional Achievement</Label>
+              <Input
+                type="text"
+                id="c2cAdditionalAchievement"
+                className="bg-[#323232] border-[#424242] text-white"
+                value={formData.c2cAdditionalAchievement || ''}
+                onChange={(e) => handleInputChange('c2cAdditionalAchievement', e.target.value)}
+              />
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="documentId"
+                  checked={formData.documentId || false}
+                  onCheckedChange={(checked) => handleInputChange('documentId', checked)}
+                />
+                <Label htmlFor="documentId">Document ID</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="inventoryAssessed1000ppm"
+                  checked={formData.inventoryAssessed1000ppm || false}
+                  onCheckedChange={(checked) => handleInputChange('inventoryAssessed1000ppm', checked)}
+                />
+                <Label htmlFor="inventoryAssessed1000ppm">Inventory assessed at 0,1wt.% or 1000ppm</Label>
+              </div>
+            </div>
+          </>
+        );
+
+      case 'Declare':
+        return (
+          <>
+            <div>
+              <Label htmlFor="declareType">Declare Type</Label>
+              <Select value={formData.declareType || ''} onValueChange={(value) => handleInputChange('declareType', value)}>
+                <SelectTrigger className="bg-[#323232] border-[#424242] text-white">
+                  <SelectValue placeholder="Select Declare Type" />
+                </SelectTrigger>
+                <SelectContent className="bg-[#323232] border-[#424242] text-white">
+                  <SelectItem value="Not compliant">Not compliant</SelectItem>
+                  <SelectItem value="Declared">Declared</SelectItem>
+                  <SelectItem value="LBC Compliant (aka LBC Red List Approved)">LBC Compliant (aka LBC Red List Approved)</SelectItem>
+                  <SelectItem value="Red List Free (aka LBC Red List Free)">Red List Free (aka LBC Red List Free)</SelectItem>
+                  <SelectItem value="Verified Declared">Verified Declared</SelectItem>
+                  <SelectItem value="Verified LBC Compliant (aka LBC Red List Approved)">Verified LBC Compliant (aka LBC Red List Approved)</SelectItem>
+                  <SelectItem value="Verified Red List Free (aka LBC Red List Free)">Verified Red List Free (aka LBC Red List Free)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="documentId"
+                  checked={formData.documentId || false}
+                  onCheckedChange={(checked) => handleInputChange('documentId', checked)}
+                />
+                <Label htmlFor="documentId">Document ID</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="inventoryAssessed1000ppm"
+                  checked={formData.inventoryAssessed1000ppm || false}
+                  onCheckedChange={(checked) => handleInputChange('inventoryAssessed1000ppm', checked)}
+                />
+                <Label htmlFor="inventoryAssessed1000ppm">Inventory assessed at 0,1wt.% or 1000ppm</Label>
+              </div>
+              {['Verified Declared', 'Verified LBC Compliant (aka LBC Red List Approved)', 'Verified Red List Free (aka LBC Red List Free)'].includes(formData.declareType) && (
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="externalIndependentReviewer"
+                    checked={formData.externalIndependentReviewer || false}
+                    onCheckedChange={(checked) => handleInputChange('externalIndependentReviewer', checked)}
+                  />
+                  <Label htmlFor="externalIndependentReviewer">Identification of the external independent reviewer</Label>
+                </div>
+              )}
+            </div>
+          </>
+        );
+
+      case 'Product Circularity':
+        return (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <Label htmlFor="reusedSalvage">Reused or Salvage</Label>
+                <Input
+                  type="text"
+                  id="reusedSalvage"
+                  className="bg-[#323232] border-[#424242] text-white"
+                  value={formData.reusedSalvage || ''}
+                  onChange={(e) => handleInputChange('reusedSalvage', e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="biobasedRecycledContent">Biobased and Recycled Content (%)</Label>
+                <Input
+                  type="text"
+                  id="biobasedRecycledContent"
+                  className="bg-[#323232] border-[#424242] text-white"
+                  value={formData.biobasedRecycledContent || ''}
+                  onChange={(e) => handleInputChange('biobasedRecycledContent', e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="extendedProducerResponsability">Extended Producer Responsibility Program</Label>
+                <Input
+                  type="text"
+                  id="extendedProducerResponsability"
+                  className="bg-[#323232] border-[#424242] text-white"
+                  value={formData.extendedProducerResponsability || ''}
+                  onChange={(e) => handleInputChange('extendedProducerResponsability', e.target.value)}
+                />
+              </div>
+            </div>
+          </>
+        );
+
+      case 'Global Green Tag Product Health Declaration':
+      case 'FSC / PEFC':
+      case 'ECOLABEL':
+        return (
+          <div>
+            <Label>Esta avaliação tem conformidade automática de 100%</Label>
+          </div>
+        );
         
-      // Continue with other evaluation types...
       default:
         return (
           <div>
