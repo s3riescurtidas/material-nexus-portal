@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -327,7 +328,7 @@ export function MaterialForm({ material, onClose, onSave }) {
                 </SelectTrigger>
                 <SelectContent className="bg-[#323232] border-[#424242]">
                   {config.manufacturers.map(mfg => (
-                    <SelectItem key={mfg} value={mfg}>{mfg}</SelectItem>
+                    <SelectItem key={mfg} value={mfg} className="text-white">{mfg}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -341,7 +342,7 @@ export function MaterialForm({ material, onClose, onSave }) {
                 </SelectTrigger>
                 <SelectContent className="bg-[#323232] border-[#424242]">
                   {config.categories.map(cat => (
-                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                    <SelectItem key={cat} value={cat} className="text-white">{cat}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -382,7 +383,7 @@ export function MaterialForm({ material, onClose, onSave }) {
                 </SelectTrigger>
                 <SelectContent className="bg-[#323232] border-[#424242]">
                   {config.evaluationTypes.map(type => (
-                    <SelectItem key={type} value={type}>{type}</SelectItem>
+                    <SelectItem key={type} value={type} className="text-white">{type}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -439,4 +440,151 @@ export function MaterialForm({ material, onClose, onSave }) {
       </DialogContent>
     </Dialog>
   );
+
+  function getInitialEvaluationFields(type) {
+    const baseFields = {
+      geographicArea: 'Global',
+      conformity: 0
+    };
+
+    switch (type) {
+      case 'EPD':
+        return {
+          ...baseFields,
+          epdType: '',
+          documentId: false,
+          epdOwner: false,
+          programOperator: false,
+          referencePcr: false,
+          manufacturerRecognized: false,
+          includeFunctionalUnit: false,
+          manufacturingLocations: false,
+          minimumCradleToGate: false,
+          allSixImpactCategories: false,
+          lcaVerificationIso14044: false,
+          personConductingLca: false,
+          lcaSoftware: false,
+          iso21930Compliance: false,
+          epdVerificationIso14025: false,
+          externalIndependentReviewer: false,
+          epdFile: ''
+        };
+      case 'LCA':
+        return {
+          ...baseFields,
+          lcaOptimizationType: '',
+          milestonesForImprovements: false,
+          narrativeActions: false,
+          targetImpactAreas: false,
+          companyExecutiveSignature: false,
+          summaryLargestImpacts: false,
+          sameOptimizationPcr: false,
+          optimizationLcaVerification: false,
+          personConductingOptimizationLca: false,
+          optimizationLcaSoftware: false,
+          comparativeAnalysis: false,
+          narrativeReductions: false,
+          reductionGwp10: false,
+          reductionGwp20: false,
+          reductionAdditionalCategories: false,
+          lcaFile: ''
+        };
+      case 'Manufacturer Inventory':
+        return {
+          ...baseFields,
+          manufacturerInventoryType: '',
+          documentId: false,
+          inventoryAssessed01Wt1000ppm: false,
+          inventoryAssessed01Wt100ppm: false,
+          allIngredientsIdentifiedByName: false,
+          allIngredientsIdentifiedByCasrn: false,
+          ingredientChemicalRoleAndAmount: false,
+          hazardScoreClassDisclosed: false,
+          noGreenScreenLt1Hazards: false,
+          greaterThan95wtAssessed: false,
+          remaining5PercentInventoried: false,
+          externalIndependentReviewer: false,
+          miFile: ''
+        };
+      case 'REACH Optimization':
+        return {
+          ...baseFields,
+          reportType: '',
+          documentId: false,
+          inventoryAssessed001Wt100ppm: false,
+          noSubstancesAuthorizationListAnnexXIV: false,
+          noSubstancesAuthorizationListAnnexXVII: false,
+          noSubstancesSvhcCandidateList: false,
+          identificationAuthorReport: false,
+          reachFile: ''
+        };
+      case 'Health Product Declaration':
+        return {
+          ...baseFields,
+          hpdType: '',
+          documentId: false,
+          inventoryAssessed001Wt1000ppm: false,
+          inventoryAssessed001Wt100ppm: false,
+          hazardsFullDisclosed: false,
+          noGreenScreenLt1Hazards: false,
+          greaterThan95wtAssessed: false,
+          remaining5PercentInventoried: false,
+          externalIndependentReviewer: false,
+          hpdFile: ''
+        };
+      case 'C2C':
+        return {
+          ...baseFields,
+          c2cType: '',
+          cleanAirClimateProtectionScore: '',
+          waterSoilStewardshipScore: '',
+          socialFairnessScore: '',
+          productCircularityScore: '',
+          additionalAchievement: '',
+          documentId: false,
+          inventoryAssessed01Wt1000ppm: false,
+          c2cFile: ''
+        };
+      case 'Declare':
+        return {
+          ...baseFields,
+          declareType: '',
+          documentId: false,
+          inventoryAssessed01Wt1000ppm: false,
+          externalIndependentReviewer: false,
+          declareFile: ''
+        };
+      case 'Product Circularity':
+        return {
+          ...baseFields,
+          reusedOrSalvage: '',
+          biobasedAndRecycledContent: '',
+          extendedProducerResponsabilityProgram: '',
+          productCircularityFile: ''
+        };
+      case 'Global Green Tag Product Health Declaration':
+        return {
+          ...baseFields,
+          geographicArea: '100%',
+          conformity: 100,
+          ggtphdFile: ''
+        };
+      case 'FSC / PEFC':
+        return {
+          ...baseFields,
+          geographicArea: '100%',
+          conformity: 100,
+          fscPefcFile: ''
+        };
+      case 'ECOLABEL':
+        return {
+          ...baseFields,
+          geographicArea: '100%',
+          conformity: 100,
+          ecolabelFile: ''
+        };
+      default:
+        return baseFields;
+    }
+  }
 }
