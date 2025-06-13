@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,6 +36,7 @@ export function MaterialForm({ material, onClose, onSave }) {
   useEffect(() => {
     if (material) {
       console.log('Loading material for editing:', material);
+      // Ensure all fields are populated, including fallbacks for undefined values
       setFormData({
         name: material.name || '',
         manufacturer: material.manufacturer || '',
@@ -173,6 +173,100 @@ export function MaterialForm({ material, onClose, onSave }) {
           reductionGwp20: false,
           reductionAdditionalCategories: false,
           lcaFile: ''
+        };
+      case 'Manufacturer Inventory':
+        return {
+          ...baseFields,
+          manufacturerInventoryType: '',
+          documentId: false,
+          inventoryAssessed01Wt1000ppm: false,
+          inventoryAssessed01Wt100ppm: false,
+          allIngredientsIdentifiedByName: false,
+          allIngredientsIdentifiedByCasrn: false,
+          ingredientChemicalRoleAndAmount: false,
+          hazardScoreClassDisclosed: false,
+          noGreenScreenLt1Hazards: false,
+          greaterThan95wtAssessed: false,
+          remaining5PercentInventoried: false,
+          externalIndependentReviewer: false,
+          miFile: ''
+        };
+      case 'REACH Optimization':
+        return {
+          ...baseFields,
+          reportType: '',
+          documentId: false,
+          inventoryAssessed001Wt100ppm: false,
+          noSubstancesAuthorizationListAnnexXIV: false,
+          noSubstancesAuthorizationListAnnexXVII: false,
+          noSubstancesSvhcCandidateList: false,
+          identificationAuthorReport: false,
+          reachFile: ''
+        };
+      case 'Health Product Declaration':
+        return {
+          ...baseFields,
+          hpdType: '',
+          documentId: false,
+          inventoryAssessed001Wt1000ppm: false,
+          inventoryAssessed001Wt100ppm: false,
+          hazardsFullDisclosed: false,
+          noGreenScreenLt1Hazards: false,
+          greaterThan95wtAssessed: false,
+          remaining5PercentInventoried: false,
+          externalIndependentReviewer: false,
+          hpdFile: ''
+        };
+      case 'C2C':
+        return {
+          ...baseFields,
+          c2cType: '',
+          cleanAirClimateProtectionScore: '',
+          waterSoilStewardshipScore: '',
+          socialFairnessScore: '',
+          productCircularityScore: '',
+          additionalAchievement: '',
+          documentId: false,
+          inventoryAssessed01Wt1000ppm: false,
+          c2cFile: ''
+        };
+      case 'Declare':
+        return {
+          ...baseFields,
+          declareType: '',
+          documentId: false,
+          inventoryAssessed01Wt1000ppm: false,
+          externalIndependentReviewer: false,
+          declareFile: ''
+        };
+      case 'Product Circularity':
+        return {
+          ...baseFields,
+          reusedOrSalvage: '',
+          biobasedAndRecycledContent: '',
+          extendedProducerResponsabilityProgram: '',
+          productCircularityFile: ''
+        };
+      case 'Global Green Tag Product Health Declaration':
+        return {
+          ...baseFields,
+          geographicArea: '100%',
+          conformity: 100,
+          ggtphdFile: ''
+        };
+      case 'FSC / PEFC':
+        return {
+          ...baseFields,
+          geographicArea: '100%',
+          conformity: 100,
+          fscPefcFile: ''
+        };
+      case 'ECOLABEL':
+        return {
+          ...baseFields,
+          geographicArea: '100%',
+          conformity: 100,
+          ecolabelFile: ''
         };
       default:
         return baseFields;
