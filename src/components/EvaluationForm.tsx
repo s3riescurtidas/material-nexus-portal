@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,59 +15,14 @@ interface EvaluationFormProps {
   onSave: (evaluation: any) => void;
 }
 
-// Define proper interface for evaluation data
-interface EvaluationData {
-  type: string;
-  version: string;
-  issueDate: string;
-  validTo: string;
-  conformity: number;
-  geographicArea: string;
-  fileName?: string;
-  // EPD specific fields
-  epdType?: string;
-  documentId?: string;
-  epdOwner?: string;
-  programOperator?: string;
-  referencePcr?: string;
-  manufacturerRecognized?: boolean;
-  includeFunctionalUnit?: boolean;
-  manufacturingLocations?: boolean;
-  minimumCradleToGate?: boolean;
-  allSixImpactCategories?: boolean;
-  lcaVerificationIso14044?: boolean;
-  personConductingLca?: boolean;
-  lcaSoftware?: boolean;
-  iso21930Compliance?: boolean;
-  epdVerificationIso14025?: boolean;
-  externalIndependentReviewer?: boolean;
-  // LCA specific fields
-  lcaOptimizationType?: string;
-  milestonesForImprovements?: boolean;
-  narrativeActions?: boolean;
-  targetImpactAreas?: boolean;
-  companyExecutiveSignature?: boolean;
-  summaryLargestImpacts?: boolean;
-  sameOptimizationPcr?: boolean;
-  optimizationLcaVerification?: boolean;
-  personConductingOptimizationLca?: boolean;
-  optimizationLcaSoftware?: boolean;
-  comparativeAnalysis?: boolean;
-  narrativeReductions?: boolean;
-  reductionGwp10?: boolean;
-  reductionGwp20?: boolean;
-  reductionAdditionalCategories?: boolean;
-  [key: string]: any;
-}
-
 export function EvaluationForm({ evaluation, onClose, onSave }: EvaluationFormProps) {
-  const [formData, setFormData] = useState<EvaluationData>({
+  const [formData, setFormData] = useState({
     type: '',
     version: '',
     issueDate: '',
     validTo: '',
     conformity: 0,
-    geographicArea: '',
+    geographicArea: 'Global',
     fileName: '',
   });
 
@@ -75,14 +31,9 @@ export function EvaluationForm({ evaluation, onClose, onSave }: EvaluationFormPr
   useEffect(() => {
     if (evaluation) {
       setFormData({
-        type: evaluation.type || '',
-        version: evaluation.version || '',
-        issueDate: evaluation.issueDate || '',
-        validTo: evaluation.validTo || '',
+        ...evaluation,
         conformity: evaluation.conformity || 0,
-        geographicArea: evaluation.geographicArea || '',
-        fileName: evaluation.fileName || '',
-        ...evaluation // Spread all other properties
+        geographicArea: evaluation.geographicArea || 'Global',
       });
     }
   }, [evaluation]);
@@ -106,79 +57,111 @@ export function EvaluationForm({ evaluation, onClose, onSave }: EvaluationFormPr
   };
 
   const calculateConformity = () => {
-    if (formData.type === 'EPD' || formData.type === 'LCA' || formData.type === 'Manufacturer Inventory' || 
-        formData.type === 'REACH Optimization' || formData.type === 'Health Product Declaration' || 
-        formData.type === 'C2C' || formData.type === 'Declare') {
-      
-      // Get all boolean fields for this evaluation type
-      const booleanFields = Object.keys(formData).filter(key => 
-        typeof formData[key] === 'boolean' && 
-        key !== 'conformity' && 
-        shouldShowField(key, formData.type, formData)
-      );
-      
-      if (booleanFields.length > 0) {
-        const trueFields = booleanFields.filter(key => formData[key] === true);
-        const conformityPercentage = Math.round((trueFields.length / booleanFields.length) * 100);
-        setFormData(prev => ({
-          ...prev,
-          conformity: conformityPercentage
-        }));
-      }
+    if (formData.conformity > 0) {
+      // Don't override custom conformity values
+      return;
     }
+
+    const booleanFields = getBooleanFieldsForType(formData.type);
+    const validFields = getValidFieldsForSubtype(formData.type, formData);
+    
+    if (validFields.length === 0) {
+      setFormData(prev => ({ ...prev, conformity: 100 }));
+      return;
+    }
+    
+    const trueCount = validFields.filter(field => formData[field] === true).length;
+    const conformityPercentage = Math.round((trueCount / validFields.length) * 100);
+    
+    setFormData(prev => ({ ...prev, conformity: conformityPercentage }));
   };
 
-  const shouldShowField = (fieldName: string, evaluationType: string, currentFormData: any): boolean => {
-    switch (evaluationType) {
+  const getBooleanFieldsForType = (type: string) => {
+    const fieldMaps = {
+      'EPD': ['documentId', 'epdOwner', 'programOperator', 'referencePcr', 'manufacturerRecognized', 'includeFunctionalUnit', 'manufacturingLocations', 'minimumCradleToGate', 'allSixImpactCategories', 'lcaVerificationIso14044', 'personConductingLca', 'lcaSoftware', 'iso21930Compliance', 'epdVerificationIso14025', 'externalIndependentReviewer'],
+      'LCA': ['milestonesForImprovements', 'narrativeActions', 'targetImpactAreas', 'companyExecutiveSignature', 'summaryLargestImpacts', 'sameOptimizationPcr', 'optimizationLcaVerification', 'personConductingOptimizationLca', 'optimizationLcaSoftware', 'comparativeAnalysis', 'narrativeReductions', 'reductionGwp10', 'reductionGwp20', 'reductionAdditionalCategories'],
+      'Manufacturer Inventory': ['documentId', 'inventoryAssessed1000ppm', 'inventoryAssessed100ppm', 'allIngredientsName', 'allIngredientsCasrn', 'ingredientRoleAmount', 'hazardScoreClass', 'noGreenScreenLt1', 'greenScreen95wt', 'remaining5Inventoried', 'externalIndependentReviewer'],
+      'REACH Optimization': ['documentId', 'inventoryAssessed100ppm', 'noAuthorizationListXiv', 'noAuthorizationListXvii', 'noSvhcCandidateList', 'identificationAuthor'],
+      'Health Product Declaration': ['documentId', 'inventoryAssessed1000ppm', 'inventoryAssessed100ppm', 'hazardsFullDisclosed', 'noGreenScreenLt1', 'greenScreen95wt', 'remaining5Inventoried', 'externalIndependentReviewer'],
+      'C2C': ['documentId', 'inventoryAssessed1000ppm'],
+      'Declare': ['documentId', 'inventoryAssessed1000ppm', 'externalIndependentReviewer']
+    };
+    
+    return fieldMaps[type] || [];
+  };
+
+  const getValidFieldsForSubtype = (type: string, data: any) => {
+    const allFields = getBooleanFieldsForType(type);
+    
+    switch (type) {
       case 'EPD':
-        if (fieldName === 'programOperator' || fieldName === 'iso21930Compliance' || fieldName === 'epdVerificationIso14025') {
-          return currentFormData.epdType !== 'Product-specific LCA';
-        }
-        if (fieldName === 'manufacturerRecognized') {
-          return currentFormData.epdType === 'Industry-wide/generic EPD';
-        }
-        if (fieldName === 'externalIndependentReviewer') {
-          return currentFormData.epdType !== 'Product-specific LCA' && currentFormData.epdType !== 'Product-specific Type III Internal EPD';
-        }
-        return true;
+        if (data.epdType === 'Not compliant') return [];
+        return allFields.filter(field => {
+          if (field === 'programOperator' || field === 'iso21930Compliance' || field === 'epdVerificationIso14025') {
+            return data.epdType !== 'Product specific LCA';
+          }
+          if (field === 'manufacturerRecognized') {
+            return data.epdType === 'Industry-wide/generic EPD';
+          }
+          if (field === 'externalIndependentReviewer') {
+            return data.epdType !== 'Product specific LCA' && data.epdType !== 'Product-specific Type III Internal EPD';
+          }
+          return true;
+        });
         
       case 'LCA':
-        if (fieldName === 'milestonesForImprovements' || fieldName === 'narrativeActions' || 
-            fieldName === 'targetImpactAreas' || fieldName === 'companyExecutiveSignature' || 
-            fieldName === 'summaryLargestImpacts') {
-          return currentFormData.lcaOptimizationType === 'LCA impact reduction action plan';
-        }
-        if (fieldName === 'sameOptimizationPcr' || fieldName === 'optimizationLcaVerification' || 
-            fieldName === 'personConductingOptimizationLca' || fieldName === 'optimizationLcaSoftware' || 
-            fieldName === 'comparativeAnalysis' || fieldName === 'narrativeReductions') {
-          return currentFormData.lcaOptimizationType !== 'LCA impact reduction action plan';
-        }
-        if (fieldName === 'reductionGwp10') {
-          return currentFormData.lcaOptimizationType === 'Verified impact reductions in GWP';
-        }
-        if (fieldName === 'reductionGwp20' || fieldName === 'reductionAdditionalCategories') {
-          return currentFormData.lcaOptimizationType === 'Verified impact reduction in GWP {\'>\'}20% + in two other {\'>\'}5%';
-        }
-        return true;
+        if (data.lcaOptimizationType === 'Not compliant') return [];
+        return allFields.filter(field => {
+          if (['milestonesForImprovements', 'narrativeActions', 'targetImpactAreas', 'companyExecutiveSignature', 'summaryLargestImpacts'].includes(field)) {
+            return data.lcaOptimizationType === 'LCA impact reduction action plan';
+          }
+          if (['sameOptimizationPcr', 'optimizationLcaVerification', 'personConductingOptimizationLca', 'optimizationLcaSoftware', 'comparativeAnalysis', 'narrativeReductions'].includes(field)) {
+            return data.lcaOptimizationType !== 'LCA impact reduction action plan';
+          }
+          if (field === 'reductionGwp10') {
+            return data.lcaOptimizationType === 'Verified impact reductions in GWP';
+          }
+          if (field === 'reductionGwp20' || field === 'reductionAdditionalCategories') {
+            return data.lcaOptimizationType === 'Verified impact reduction in GWP > 20% + in two other > 5%';
+          }
+          return true;
+        });
+        
+      case 'Manufacturer Inventory':
+        if (data.manufacturerInventoryType === 'Not compliant') return [];
+        return allFields.filter(field => {
+          if (field === 'inventoryAssessed1000ppm') {
+            return ['Self-declared manufacturer Inventory', 'Verified manufacturer Inventory'].includes(data.manufacturerInventoryType);
+          }
+          if (field === 'inventoryAssessed100ppm') {
+            return ['Verified advanced manufacturer Inventory', 'Verified ingredient optimized manufacturer Inventory'].includes(data.manufacturerInventoryType);
+          }
+          if (field === 'noGreenScreenLt1') {
+            return data.manufacturerInventoryType === 'Verified advanced manufacturer Inventory';
+          }
+          if (field === 'greenScreen95wt' || field === 'remaining5Inventoried') {
+            return data.manufacturerInventoryType === 'Verified ingredient optimized manufacturer Inventory';
+          }
+          if (field === 'externalIndependentReviewer') {
+            return data.manufacturerInventoryType !== 'Self-declared manufacturer Inventory';
+          }
+          return true;
+        });
         
       default:
-        return true;
+        return allFields;
     }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Calculate conformity before saving
     calculateConformity();
     
-    // Create the final evaluation data
     const evaluationData = {
       ...formData,
       id: evaluation?.id || Date.now()
     };
     
-    console.log('Saving evaluation data:', evaluationData);
     onSave(evaluationData);
   };
 
@@ -187,473 +170,327 @@ export function EvaluationForm({ evaluation, onClose, onSave }: EvaluationFormPr
       case 'EPD':
         return (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="epdType">EPD Type</Label>
-                <Select onValueChange={(value) => handleInputChange('epdType', value)} defaultValue={formData.epdType || ''}>
-                  <SelectTrigger className="bg-[#323232] border-[#424242] text-white">
-                    <SelectValue placeholder="Select EPD Type" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-[#323232] border-[#424242] text-white">
-                    <SelectItem value="Product-specific LCA">Product-specific LCA</SelectItem>
-                    <SelectItem value="Product-specific Type III Internal EPD">Product-specific Type III Internal EPD</SelectItem>
-                    <SelectItem value="Industry-wide/generic EPD">Industry-wide/generic EPD</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="documentId">Document ID</Label>
-                <Input
-                  type="text"
+            <div>
+              <Label htmlFor="epdType">EPD Type</Label>
+              <Select value={formData.epdType || ''} onValueChange={(value) => handleInputChange('epdType', value)}>
+                <SelectTrigger className="bg-[#323232] border-[#424242] text-white">
+                  <SelectValue placeholder="Select EPD Type" />
+                </SelectTrigger>
+                <SelectContent className="bg-[#323232] border-[#424242] text-white">
+                  <SelectItem value="Not compliant">Not compliant</SelectItem>
+                  <SelectItem value="Product specific LCA">Product specific LCA</SelectItem>
+                  <SelectItem value="Industry-wide/generic EPD">Industry-wide/generic EPD</SelectItem>
+                  <SelectItem value="Product-specific Type III Internal EPD">Product-specific Type III Internal EPD</SelectItem>
+                  <SelectItem value="Product Specific Type III External EPD">Product Specific Type III External EPD</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="flex items-center space-x-2">
+                <Checkbox
                   id="documentId"
-                  className="bg-[#323232] border-[#424242] text-white"
-                  value={formData.documentId || ''}
-                  onChange={(e) => handleInputChange('documentId', e.target.value)}
+                  checked={formData.documentId || false}
+                  onCheckedChange={(checked) => handleInputChange('documentId', checked)}
                 />
+                <Label htmlFor="documentId">Document ID</Label>
               </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {shouldShowField('epdOwner', formData.type, formData) && (
-                <div>
-                  <Label htmlFor="epdOwner">EPD Owner</Label>
-                  <Input
-                    type="text"
-                    id="epdOwner"
-                    className="bg-[#323232] border-[#424242] text-white"
-                    value={formData.epdOwner || ''}
-                    onChange={(e) => handleInputChange('epdOwner', e.target.value)}
-                  />
-                </div>
-              )}
-              {shouldShowField('programOperator', formData.type, formData) && (
-                <div>
-                  <Label htmlFor="programOperator">Program Operator</Label>
-                  <Input
-                    type="text"
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="epdOwner"
+                  checked={formData.epdOwner || false}
+                  onCheckedChange={(checked) => handleInputChange('epdOwner', checked)}
+                />
+                <Label htmlFor="epdOwner">EPD owner</Label>
+              </div>
+              {formData.epdType !== 'Product specific LCA' && (
+                <div className="flex items-center space-x-2">
+                  <Checkbox
                     id="programOperator"
-                    className="bg-[#323232] border-[#424242] text-white"
-                    value={formData.programOperator || ''}
-                    onChange={(e) => handleInputChange('programOperator', e.target.value)}
+                    checked={formData.programOperator || false}
+                    onCheckedChange={(checked) => handleInputChange('programOperator', checked)}
                   />
-                </div>
-              )}
-              {shouldShowField('referencePcr', formData.type, formData) && (
-                <div>
-                  <Label htmlFor="referencePcr">Reference PCR</Label>
-                  <Input
-                    type="text"
-                    id="referencePcr"
-                    className="bg-[#323232] border-[#424242] text-white"
-                    value={formData.referencePcr || ''}
-                    onChange={(e) => handleInputChange('referencePcr', e.target.value)}
-                  />
+                  <Label htmlFor="programOperator">Program operator</Label>
                 </div>
               )}
             </div>
+            
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {shouldShowField('manufacturerRecognized', formData.type, formData) && (
-                <div>
-                  <Label htmlFor="manufacturerRecognized">Manufacturer Recognized</Label>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="referencePcr"
+                  checked={formData.referencePcr || false}
+                  onCheckedChange={(checked) => handleInputChange('referencePcr', checked)}
+                />
+                <Label htmlFor="referencePcr">Reference PCR</Label>
+              </div>
+              {formData.epdType === 'Industry-wide/generic EPD' && (
+                <div className="flex items-center space-x-2">
                   <Checkbox
                     id="manufacturerRecognized"
                     checked={formData.manufacturerRecognized || false}
                     onCheckedChange={(checked) => handleInputChange('manufacturerRecognized', checked)}
                   />
+                  <Label htmlFor="manufacturerRecognized">Manufacturer recognized as participant</Label>
                 </div>
               )}
-              <div>
-                <Label htmlFor="includeFunctionalUnit">Include Functional Unit</Label>
+              <div className="flex items-center space-x-2">
                 <Checkbox
                   id="includeFunctionalUnit"
                   checked={formData.includeFunctionalUnit || false}
                   onCheckedChange={(checked) => handleInputChange('includeFunctionalUnit', checked)}
                 />
+                <Label htmlFor="includeFunctionalUnit">Include functional unit</Label>
               </div>
-              <div>
-                <Label htmlFor="manufacturingLocations">Manufacturing Locations</Label>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="flex items-center space-x-2">
                 <Checkbox
                   id="manufacturingLocations"
                   checked={formData.manufacturingLocations || false}
                   onCheckedChange={(checked) => handleInputChange('manufacturingLocations', checked)}
                 />
+                <Label htmlFor="manufacturingLocations">Manufacturing location(s) indicated</Label>
               </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <Label htmlFor="minimumCradleToGate">Minimum Cradle To Gate</Label>
+              <div className="flex items-center space-x-2">
                 <Checkbox
                   id="minimumCradleToGate"
                   checked={formData.minimumCradleToGate || false}
                   onCheckedChange={(checked) => handleInputChange('minimumCradleToGate', checked)}
                 />
+                <Label htmlFor="minimumCradleToGate">Minimum cradle to gate scope</Label>
               </div>
-              <div>
-                <Label htmlFor="allSixImpactCategories">All Six Impact Categories</Label>
+              <div className="flex items-center space-x-2">
                 <Checkbox
                   id="allSixImpactCategories"
                   checked={formData.allSixImpactCategories || false}
                   onCheckedChange={(checked) => handleInputChange('allSixImpactCategories', checked)}
                 />
+                <Label htmlFor="allSixImpactCategories">All 6 impact categories listed</Label>
               </div>
-              <div>
-                <Label htmlFor="lcaVerificationIso14044">LCA Verification ISO 14044</Label>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="flex items-center space-x-2">
                 <Checkbox
                   id="lcaVerificationIso14044"
                   checked={formData.lcaVerificationIso14044 || false}
                   onCheckedChange={(checked) => handleInputChange('lcaVerificationIso14044', checked)}
                 />
+                <Label htmlFor="lcaVerificationIso14044">LCA verification according to ISO 14044</Label>
               </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <Label htmlFor="personConductingLca">Person Conducting LCA</Label>
+              <div className="flex items-center space-x-2">
                 <Checkbox
                   id="personConductingLca"
                   checked={formData.personConductingLca || false}
                   onCheckedChange={(checked) => handleInputChange('personConductingLca', checked)}
                 />
+                <Label htmlFor="personConductingLca">Identification of the person conducting the LCA</Label>
               </div>
-              <div>
-                <Label htmlFor="lcaSoftware">LCA Software</Label>
+              <div className="flex items-center space-x-2">
                 <Checkbox
                   id="lcaSoftware"
                   checked={formData.lcaSoftware || false}
                   onCheckedChange={(checked) => handleInputChange('lcaSoftware', checked)}
                 />
+                <Label htmlFor="lcaSoftware">LCA software used</Label>
               </div>
-              {shouldShowField('iso21930Compliance', formData.type, formData) && (
-                <div>
-                  <Label htmlFor="iso21930Compliance">ISO 21930 Compliance</Label>
-                  <Checkbox
-                    id="iso21930Compliance"
-                    checked={formData.iso21930Compliance || false}
-                    onCheckedChange={(checked) => handleInputChange('iso21930Compliance', checked)}
-                  />
-                </div>
-              )}
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {shouldShowField('epdVerificationIso14025', formData.type, formData) && (
-                <div>
-                  <Label htmlFor="epdVerificationIso14025">EPD Verification ISO 14025</Label>
-                  <Checkbox
-                    id="epdVerificationIso14025"
-                    checked={formData.epdVerificationIso14025 || false}
-                    onCheckedChange={(checked) => handleInputChange('epdVerificationIso14025', checked)}
-                  />
-                </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {formData.epdType !== 'Product specific LCA' && (
+                <>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="iso21930Compliance"
+                      checked={formData.iso21930Compliance || false}
+                      onCheckedChange={(checked) => handleInputChange('iso21930Compliance', checked)}
+                    />
+                    <Label htmlFor="iso21930Compliance">ISO 21930 or EN 15804 compliance</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="epdVerificationIso14025"
+                      checked={formData.epdVerificationIso14025 || false}
+                      onCheckedChange={(checked) => handleInputChange('epdVerificationIso14025', checked)}
+                    />
+                    <Label htmlFor="epdVerificationIso14025">EPD verification according to ISO 14025</Label>
+                  </div>
+                </>
               )}
-              {shouldShowField('externalIndependentReviewer', formData.type, formData) && (
-                <div>
-                  <Label htmlFor="externalIndependentReviewer">External Independent Reviewer</Label>
+              {formData.epdType !== 'Product specific LCA' && formData.epdType !== 'Product-specific Type III Internal EPD' && (
+                <div className="flex items-center space-x-2">
                   <Checkbox
                     id="externalIndependentReviewer"
                     checked={formData.externalIndependentReviewer || false}
                     onCheckedChange={(checked) => handleInputChange('externalIndependentReviewer', checked)}
                   />
+                  <Label htmlFor="externalIndependentReviewer">Identification of the external independent reviewer</Label>
                 </div>
               )}
             </div>
           </>
         );
+        
       case 'LCA':
         return (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="lcaOptimizationType">LCA Optimization Type</Label>
-                <Select onValueChange={(value) => handleInputChange('lcaOptimizationType', value)} defaultValue={formData.lcaOptimizationType || ''}>
-                  <SelectTrigger className="bg-[#323232] border-[#424242] text-white">
-                    <SelectValue placeholder="Select LCA Optimization Type" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-[#323232] border-[#424242] text-white">
-                    <SelectItem value="LCA impact reduction action plan">LCA impact reduction action plan</SelectItem>
-                    <SelectItem value="Verified impact reductions in GWP">Verified impact reductions in GWP</SelectItem>
-                    <SelectItem value="Verified impact reduction in GWP {'>'}20% + in two other {'>'}5%">Verified impact reduction in GWP {'>'}20% + in two other {'>'}5%</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            <div>
+              <Label htmlFor="lcaOptimizationType">LCA Optimization Type</Label>
+              <Select value={formData.lcaOptimizationType || ''} onValueChange={(value) => handleInputChange('lcaOptimizationType', value)}>
+                <SelectTrigger className="bg-[#323232] border-[#424242] text-white">
+                  <SelectValue placeholder="Select LCA Optimization Type" />
+                </SelectTrigger>
+                <SelectContent className="bg-[#323232] border-[#424242] text-white">
+                  <SelectItem value="Not compliant">Not compliant</SelectItem>
+                  <SelectItem value="LCA impact reduction action plan">LCA impact reduction action plan</SelectItem>
+                  <SelectItem value="Verified impact reductions in GWP">Verified impact reductions in GWP</SelectItem>
+                  <SelectItem value="Verified impact reduction in GWP > 10%">Verified impact reduction in GWP {'>'} 10%</SelectItem>
+                  <SelectItem value="Verified impact reduction in GWP > 20% + in two other > 5%">Verified impact reduction in GWP {'>'} 20% + in two other {'>'} 5%</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {shouldShowField('milestonesForImprovements', formData.type, formData) && (
-                <div>
-                  <Label htmlFor="milestonesForImprovements">Milestones For Improvements</Label>
+            
+            {formData.lcaOptimizationType === 'LCA impact reduction action plan' && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="flex items-center space-x-2">
                   <Checkbox
                     id="milestonesForImprovements"
                     checked={formData.milestonesForImprovements || false}
                     onCheckedChange={(checked) => handleInputChange('milestonesForImprovements', checked)}
                   />
+                  <Label htmlFor="milestonesForImprovements">Milestones for improvements with timeline</Label>
                 </div>
-              )}
-              {shouldShowField('narrativeActions', formData.type, formData) && (
-                <div>
-                  <Label htmlFor="narrativeActions">Narrative Actions</Label>
+                <div className="flex items-center space-x-2">
                   <Checkbox
                     id="narrativeActions"
                     checked={formData.narrativeActions || false}
                     onCheckedChange={(checked) => handleInputChange('narrativeActions', checked)}
                   />
+                  <Label htmlFor="narrativeActions">Narrative with actions to be pursued</Label>
                 </div>
-              )}
-              {shouldShowField('targetImpactAreas', formData.type, formData) && (
-                <div>
-                  <Label htmlFor="targetImpactAreas">Target Impact Areas</Label>
+                <div className="flex items-center space-x-2">
                   <Checkbox
                     id="targetImpactAreas"
                     checked={formData.targetImpactAreas || false}
                     onCheckedChange={(checked) => handleInputChange('targetImpactAreas', checked)}
                   />
+                  <Label htmlFor="targetImpactAreas">Description of target impact areas</Label>
                 </div>
-              )}
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {shouldShowField('companyExecutiveSignature', formData.type, formData) && (
-                <div>
-                  <Label htmlFor="companyExecutiveSignature">Company Executive Signature</Label>
+                <div className="flex items-center space-x-2">
                   <Checkbox
                     id="companyExecutiveSignature"
                     checked={formData.companyExecutiveSignature || false}
                     onCheckedChange={(checked) => handleInputChange('companyExecutiveSignature', checked)}
                   />
+                  <Label htmlFor="companyExecutiveSignature">Signature of company executive</Label>
                 </div>
-              )}
-              {shouldShowField('summaryLargestImpacts', formData.type, formData) && (
-                <div>
-                  <Label htmlFor="summaryLargestImpacts">Summary Largest Impacts</Label>
+                <div className="flex items-center space-x-2">
                   <Checkbox
                     id="summaryLargestImpacts"
                     checked={formData.summaryLargestImpacts || false}
                     onCheckedChange={(checked) => handleInputChange('summaryLargestImpacts', checked)}
                   />
+                  <Label htmlFor="summaryLargestImpacts">Table/Summary of largest life cycle impacts</Label>
                 </div>
-              )}
-              {shouldShowField('sameOptimizationPcr', formData.type, formData) && (
-                <div>
-                  <Label htmlFor="sameOptimizationPcr">Same Optimization PCR</Label>
+              </div>
+            )}
+            
+            {formData.lcaOptimizationType !== 'LCA impact reduction action plan' && formData.lcaOptimizationType !== 'Not compliant' && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="flex items-center space-x-2">
                   <Checkbox
                     id="sameOptimizationPcr"
                     checked={formData.sameOptimizationPcr || false}
                     onCheckedChange={(checked) => handleInputChange('sameOptimizationPcr', checked)}
                   />
+                  <Label htmlFor="sameOptimizationPcr">Same optimization PCR as reference PCR</Label>
                 </div>
-              )}
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {shouldShowField('optimizationLcaVerification', formData.type, formData) && (
-                <div>
-                  <Label htmlFor="optimizationLcaVerification">Optimization LCA Verification</Label>
+                <div className="flex items-center space-x-2">
                   <Checkbox
                     id="optimizationLcaVerification"
                     checked={formData.optimizationLcaVerification || false}
                     onCheckedChange={(checked) => handleInputChange('optimizationLcaVerification', checked)}
                   />
+                  <Label htmlFor="optimizationLcaVerification">Optimization LCA verification according to ISO 14044</Label>
                 </div>
-              )}
-              {shouldShowField('personConductingOptimizationLca', formData.type, formData) && (
-                <div>
-                  <Label htmlFor="personConductingOptimizationLca">Person Conducting Optimization LCA</Label>
+                <div className="flex items-center space-x-2">
                   <Checkbox
                     id="personConductingOptimizationLca"
                     checked={formData.personConductingOptimizationLca || false}
                     onCheckedChange={(checked) => handleInputChange('personConductingOptimizationLca', checked)}
                   />
+                  <Label htmlFor="personConductingOptimizationLca">Identification of the person conducting the optimization LCA</Label>
                 </div>
-              )}
-              {shouldShowField('optimizationLcaSoftware', formData.type, formData) && (
-                <div>
-                  <Label htmlFor="optimizationLcaSoftware">Optimization LCA Software</Label>
+                <div className="flex items-center space-x-2">
                   <Checkbox
                     id="optimizationLcaSoftware"
                     checked={formData.optimizationLcaSoftware || false}
                     onCheckedChange={(checked) => handleInputChange('optimizationLcaSoftware', checked)}
                   />
+                  <Label htmlFor="optimizationLcaSoftware">Optimization LCA software used</Label>
                 </div>
-              )}
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {shouldShowField('comparativeAnalysis', formData.type, formData) && (
-                <div>
-                  <Label htmlFor="comparativeAnalysis">Comparative Analysis</Label>
+                <div className="flex items-center space-x-2">
                   <Checkbox
                     id="comparativeAnalysis"
                     checked={formData.comparativeAnalysis || false}
                     onCheckedChange={(checked) => handleInputChange('comparativeAnalysis', checked)}
                   />
+                  <Label htmlFor="comparativeAnalysis">Comparative analysis showing impact reduction in GWP</Label>
                 </div>
-              )}
-              {shouldShowField('narrativeReductions', formData.type, formData) && (
-                <div>
-                  <Label htmlFor="narrativeReductions">Narrative Reductions</Label>
+                <div className="flex items-center space-x-2">
                   <Checkbox
                     id="narrativeReductions"
                     checked={formData.narrativeReductions || false}
                     onCheckedChange={(checked) => handleInputChange('narrativeReductions', checked)}
                   />
+                  <Label htmlFor="narrativeReductions">Narrative describing how reductions in impacts were achieved</Label>
                 </div>
-              )}
-              {shouldShowField('reductionGwp10', formData.type, formData) && (
-                <div>
-                  <Label htmlFor="reductionGwp10">Reduction GWP 10</Label>
-                  <Checkbox
-                    id="reductionGwp10"
-                    checked={formData.reductionGwp10 || false}
-                    onCheckedChange={(checked) => handleInputChange('reductionGwp10', checked)}
-                  />
-                </div>
-              )}
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {shouldShowField('reductionGwp20', formData.type, formData) && (
-                <div>
-                  <Label htmlFor="reductionGwp20">Reduction GWP 20</Label>
+              </div>
+            )}
+            
+            {formData.lcaOptimizationType === 'Verified impact reductions in GWP' && (
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="reductionGwp10"
+                  checked={formData.reductionGwp10 || false}
+                  onCheckedChange={(checked) => handleInputChange('reductionGwp10', checked)}
+                />
+                <Label htmlFor="reductionGwp10">Reduction in GWP against the baseline 10%</Label>
+              </div>
+            )}
+            
+            {formData.lcaOptimizationType === 'Verified impact reduction in GWP > 20% + in two other > 5%' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex items-center space-x-2">
                   <Checkbox
                     id="reductionGwp20"
                     checked={formData.reductionGwp20 || false}
                     onCheckedChange={(checked) => handleInputChange('reductionGwp20', checked)}
                   />
+                  <Label htmlFor="reductionGwp20">Reduction in GWP against the baseline 20%</Label>
                 </div>
-              )}
-              {shouldShowField('reductionAdditionalCategories', formData.type, formData) && (
-                <div>
-                  <Label htmlFor="reductionAdditionalCategories">Reduction Additional Categories</Label>
+                <div className="flex items-center space-x-2">
                   <Checkbox
                     id="reductionAdditionalCategories"
                     checked={formData.reductionAdditionalCategories || false}
                     onCheckedChange={(checked) => handleInputChange('reductionAdditionalCategories', checked)}
                   />
+                  <Label htmlFor="reductionAdditionalCategories">Reduction in additional 2 impact categories against the baseline {'>'} 5%</Label>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </>
         );
-      case 'Manufacturer Inventory':
-        return (
-          <>
-            <div>
-              <Label htmlFor="inventoryDetails">Inventory Details</Label>
-              <Textarea
-                id="inventoryDetails"
-                className="bg-[#323232] border-[#424242] text-white"
-                value={formData.inventoryDetails || ''}
-                onChange={(e) => handleInputChange('inventoryDetails', e.target.value)}
-              />
-            </div>
-          </>
-        );
-      case 'REACH Optimization':
-        return (
-          <>
-            <div>
-              <Label htmlFor="reachDetails">REACH Details</Label>
-              <Textarea
-                id="reachDetails"
-                className="bg-[#323232] border-[#424242] text-white"
-                value={formData.reachDetails || ''}
-                onChange={(e) => handleInputChange('reachDetails', e.target.value)}
-              />
-            </div>
-          </>
-        );
-      case 'Health Product Declaration':
-        return (
-          <>
-            <div>
-              <Label htmlFor="hpdDetails">HPD Details</Label>
-              <Textarea
-                id="hpdDetails"
-                className="bg-[#323232] border-[#424242] text-white"
-                value={formData.hpdDetails || ''}
-                onChange={(e) => handleInputChange('hpdDetails', e.target.value)}
-              />
-            </div>
-          </>
-        );
-      case 'C2C':
-        return (
-          <>
-            <div>
-              <Label htmlFor="c2cDetails">C2C Details</Label>
-              <Textarea
-                id="c2cDetails"
-                className="bg-[#323232] border-[#424242] text-white"
-                value={formData.c2cDetails || ''}
-                onChange={(e) => handleInputChange('c2cDetails', e.target.value)}
-              />
-            </div>
-          </>
-        );
-      case 'Declare':
-        return (
-          <>
-            <div>
-              <Label htmlFor="declareDetails">Declare Details</Label>
-              <Textarea
-                id="declareDetails"
-                className="bg-[#323232] border-[#424242] text-white"
-                value={formData.declareDetails || ''}
-                onChange={(e) => handleInputChange('declareDetails', e.target.value)}
-              />
-            </div>
-          </>
-        );
-      case 'Product Circularity':
-        return (
-          <>
-            <div>
-              <Label htmlFor="circularityDetails">Circularity Details</Label>
-              <Textarea
-                id="circularityDetails"
-                className="bg-[#323232] border-[#424242] text-white"
-                value={formData.circularityDetails || ''}
-                onChange={(e) => handleInputChange('circularityDetails', e.target.value)}
-              />
-            </div>
-          </>
-        );
-      case 'Global Green Tag Product Health Declaration':
-        return (
-          <>
-            <div>
-              <Label htmlFor="ggtDetails">GGT Details</Label>
-              <Textarea
-                id="ggtDetails"
-                className="bg-[#323232] border-[#424242] text-white"
-                value={formData.ggtDetails || ''}
-                onChange={(e) => handleInputChange('ggtDetails', e.target.value)}
-              />
-            </div>
-          </>
-        );
-      case 'FSC / PEFC':
-        return (
-          <>
-            <div>
-              <Label htmlFor="fscDetails">FSC Details</Label>
-              <Textarea
-                id="fscDetails"
-                className="bg-[#323232] border-[#424242] text-white"
-                value={formData.fscDetails || ''}
-                onChange={(e) => handleInputChange('fscDetails', e.target.value)}
-              />
-            </div>
-          </>
-        );
-      case 'ECOLABEL':
-        return (
-          <>
-            <div>
-              <Label htmlFor="ecolabelDetails">Ecolabel Details</Label>
-              <Textarea
-                id="ecolabelDetails"
-                className="bg-[#323232] border-[#424242] text-white"
-                value={formData.ecolabelDetails || ''}
-                onChange={(e) => handleInputChange('ecolabelDetails', e.target.value)}
-              />
-            </div>
-          </>
-        );
+        
+      // Continue with other evaluation types...
       default:
-        return null;
+        return (
+          <div>
+            <Label>Campos específicos para {formData.type} serão implementados em breve</Label>
+          </div>
+        );
     }
   };
 
@@ -670,7 +507,7 @@ export function EvaluationForm({ evaluation, onClose, onSave }: EvaluationFormPr
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="type">Tipo de Avaliação</Label>
-              <Select onValueChange={(value) => handleInputChange('type', value)} defaultValue={formData.type}>
+              <Select value={formData.type} onValueChange={(value) => handleInputChange('type', value)}>
                 <SelectTrigger className="bg-[#323232] border-[#424242] text-white">
                   <SelectValue placeholder="Selecione o tipo de avaliação" />
                 </SelectTrigger>
@@ -702,7 +539,7 @@ export function EvaluationForm({ evaluation, onClose, onSave }: EvaluationFormPr
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <Label htmlFor="issueDate">Data de Emissão</Label>
               <Input
@@ -724,20 +561,6 @@ export function EvaluationForm({ evaluation, onClose, onSave }: EvaluationFormPr
                 onChange={(e) => handleInputChange('validTo', e.target.value)}
               />
             </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="conformity">Conformidade (%)</Label>
-              <Input
-                type="number"
-                id="conformity"
-                className="bg-[#323232] border-[#424242] text-white"
-                value={formData.conformity}
-                onChange={(e) => handleInputChange('conformity', parseInt(e.target.value))}
-                readOnly
-              />
-            </div>
 
             <div>
               <Label htmlFor="geographicArea">Área Geográfica</Label>
@@ -749,6 +572,17 @@ export function EvaluationForm({ evaluation, onClose, onSave }: EvaluationFormPr
                 onChange={(e) => handleInputChange('geographicArea', e.target.value)}
               />
             </div>
+          </div>
+
+          <div>
+            <Label htmlFor="conformity">Conformidade (%)</Label>
+            <Input
+              type="number"
+              id="conformity"
+              className="bg-[#323232] border-[#424242] text-white"
+              value={formData.conformity}
+              onChange={(e) => handleInputChange('conformity', parseInt(e.target.value) || 0)}
+            />
           </div>
 
           {renderSpecificFields()}

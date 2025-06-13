@@ -67,61 +67,6 @@ export function MaterialForm({ material, onClose, onSave }) {
     }
   };
 
-  const calculateConformity = (evaluation) => {
-    const fields = getEvaluationFields(evaluation.type);
-    const booleanFields = fields.filter(field => field.type === 'boolean');
-    
-    if (booleanFields.length === 0) return 100;
-    
-    const validFields = getValidFieldsForSubtype(evaluation.type, evaluation[getSubtypeField(evaluation.type)], booleanFields);
-    
-    if (validFields.length === 0) return 100;
-    
-    const trueCount = validFields.filter(field => evaluation[field.key] === true).length;
-    return Math.round((trueCount / validFields.length) * 100);
-  };
-
-  const getSubtypeField = (type) => {
-    const subtypeFields = {
-      'EPD': 'epdType',
-      'LCA': 'lcaOptimizationType',
-      'Manufacturer Inventory': 'manufacturerInventoryType',
-      'REACH Optimization': 'reportType',
-      'Health Product Declaration': 'hpdType',
-      'C2C': 'c2cType',
-      'Declare': 'declareType'
-    };
-    return subtypeFields[type];
-  };
-
-  const getValidFieldsForSubtype = (type, subtype, allFields) => {
-    return allFields;
-  };
-
-  const getEvaluationFields = (type) => {
-    const fieldDefinitions = {
-      'EPD': [
-        { key: 'epdType', type: 'select', label: 'EPD Type', options: ['Not compliant', 'Product specific LCA', 'Industry-wide/generic EPD', 'Product-specific Type III Internal EPD', 'Product Specific Type III External EPD'] },
-        { key: 'documentId', type: 'boolean', label: 'Document ID' },
-        { key: 'epdOwner', type: 'boolean', label: 'EPD owner' },
-        { key: 'programOperator', type: 'boolean', label: 'Program operator' },
-        { key: 'referencePcr', type: 'boolean', label: 'Reference PCR' },
-      ],
-      'C2C': [
-        { key: 'c2cType', type: 'select', label: 'C2C Type', options: ['Not compliant', 'Material Health Certificate v3 at the Bronze level', 'C2C Certified v3 with Material Health at Bronze level', 'Material Health Certificate v3 at Silver level', 'C2C Certified v3 with Material Health at Silver level'] },
-        { key: 'cleanAirClimateProtection', type: 'select', label: 'Clean Air and Climate Protection', options: ['Level 1', 'Level 2', 'Level 3'] },
-        { key: 'waterSoilStewardship', type: 'select', label: 'Water and Soil Stewardship', options: ['Level 1', 'Level 2', 'Level 3'] },
-        { key: 'socialFearness', type: 'select', label: 'Social Fearness', options: ['Level 1', 'Level 2', 'Level 3'] },
-        { key: 'productCircularity', type: 'select', label: 'Product Circularity', options: ['Level 1', 'Level 2', 'Level 3'] },
-        { key: 'additionalAchievement', type: 'textarea', label: 'Additional Achievement' },
-        { key: 'documentId', type: 'boolean', label: 'Document ID' },
-        { key: 'inventoryAssessed', type: 'boolean', label: 'Inventory assessed at 0,1wt.% or 1000ppm' },
-      ]
-    };
-    
-    return fieldDefinitions[type] || [];
-  };
-
   const handleSubmit = (e) => {
     e.preventDefault();
     console.log('Saving material with data:', formData);
@@ -226,7 +171,7 @@ export function MaterialForm({ material, onClose, onSave }) {
           narrativeReductions: false,
           reductionGwp10: false,
           reductionGwp20: false,
-          reductionAdditional2Categories: false,
+          reductionAdditionalCategories: false,
           lcaFile: ''
         };
       default:
