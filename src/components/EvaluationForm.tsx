@@ -16,7 +16,7 @@ interface EvaluationFormProps {
 }
 
 export function EvaluationForm({ evaluation, onClose, onSave }: EvaluationFormProps) {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<any>({
     type: '',
     version: '',
     issueDate: '',
@@ -31,6 +31,7 @@ export function EvaluationForm({ evaluation, onClose, onSave }: EvaluationFormPr
   useEffect(() => {
     if (evaluation) {
       setFormData({
+        ...getInitialEvaluationFields(evaluation.type),
         ...evaluation,
         conformity: evaluation.conformity || 0,
         geographicArea: evaluation.geographicArea || 'Global',
@@ -39,17 +40,27 @@ export function EvaluationForm({ evaluation, onClose, onSave }: EvaluationFormPr
   }, [evaluation]);
 
   const handleInputChange = (field: string, value: any) => {
-    setFormData(prev => ({
+    setFormData((prev: any) => ({
       ...prev,
       [field]: value
     }));
+    
+    // If changing type, reset type-specific fields
+    if (field === 'type') {
+      const newFields = getInitialEvaluationFields(value);
+      setFormData((prev: any) => ({
+        ...prev,
+        ...newFields,
+        [field]: value
+      }));
+    }
   };
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       setSelectedFile(file);
-      setFormData(prev => ({
+      setFormData((prev: any) => ({
         ...prev,
         fileName: file.name
       }));
@@ -62,22 +73,21 @@ export function EvaluationForm({ evaluation, onClose, onSave }: EvaluationFormPr
       return;
     }
 
-    const booleanFields = getBooleanFieldsForType(formData.type);
     const validFields = getValidFieldsForSubtype(formData.type, formData);
     
     if (validFields.length === 0) {
-      setFormData(prev => ({ ...prev, conformity: 100 }));
+      setFormData((prev: any) => ({ ...prev, conformity: 100 }));
       return;
     }
     
     const trueCount = validFields.filter(field => formData[field] === true).length;
     const conformityPercentage = Math.round((trueCount / validFields.length) * 100);
     
-    setFormData(prev => ({ ...prev, conformity: conformityPercentage }));
+    setFormData((prev: any) => ({ ...prev, conformity: conformityPercentage }));
   };
 
   const getBooleanFieldsForType = (type: string) => {
-    const fieldMaps = {
+    const fieldMaps: { [key: string]: string[] } = {
       'EPD': ['documentId', 'epdOwner', 'programOperator', 'referencePcr', 'manufacturerRecognized', 'includeFunctionalUnit', 'manufacturingLocations', 'minimumCradleToGate', 'allSixImpactCategories', 'lcaVerificationIso14044', 'personConductingLca', 'lcaSoftware', 'iso21930Compliance', 'epdVerificationIso14025', 'externalIndependentReviewer'],
       'LCA': ['milestonesForImprovements', 'narrativeActions', 'targetImpactAreas', 'companyExecutiveSignature', 'summaryLargestImpacts', 'sameOptimizationPcr', 'optimizationLcaVerification', 'personConductingOptimizationLca', 'optimizationLcaSoftware', 'comparativeAnalysis', 'narrativeReductions', 'reductionGwp10', 'reductionGwp20', 'reductionAdditionalCategories'],
       'Manufacturer Inventory': ['documentId', 'inventoryAssessed1000ppm', 'inventoryAssessed100ppm', 'allIngredientsName', 'allIngredientsCasrn', 'ingredientRoleAmount', 'hazardScoreClass', 'noGreenScreenLt1', 'greenScreen95wt', 'remaining5Inventoried', 'externalIndependentReviewer'],
@@ -127,35 +137,162 @@ export function EvaluationForm({ evaluation, onClose, onSave }: EvaluationFormPr
           return true;
         });
         
-      case 'Manufacturer Inventory':
-        if (data.manufacturerInventoryType === 'Not compliant') return [];
-        return allFields.filter(field => {
-          if (field === 'inventoryAssessed1000ppm') {
-            return ['Self-declared manufacturer Inventory', 'Verified manufacturer Inventory'].includes(data.manufacturerInventoryType);
-          }
-          if (field === 'inventoryAssessed100ppm') {
-            return ['Verified advanced manufacturer Inventory', 'Verified ingredient optimized manufacturer Inventory'].includes(data.manufacturerInventoryType);
-          }
-          if (field === 'noGreenScreenLt1') {
-            return data.manufacturerInventoryType === 'Verified advanced manufacturer Inventory';
-          }
-          if (field === 'greenScreen95wt' || field === 'remaining5Inventoried') {
-            return data.manufacturerInventoryType === 'Verified ingredient optimized manufacturer Inventory';
-          }
-          if (field === 'externalIndependentReviewer') {
-            return data.manufacturerInventoryType !== 'Self-declared manufacturer Inventory';
-          }
-          return true;
-        });
-        
       default:
         return allFields;
     }
   };
 
+  const getInitialEvaluationFields = (type: string) => {
+    const baseFields = {
+      geographicArea: 'Global',
+      conformity: 0
+    };
+
+    switch (type) {
+      case 'EPD':
+        return {
+          ...baseFields,
+          epdType: '',
+          documentId: false,
+          epdOwner: false,
+          programOperator: false,
+          referencePcr: false,
+          manufacturerRecognized: false,
+          includeFunctionalUnit: false,
+          manufacturingLocations: false,
+          minimumCradleToGate: false,
+          allSixImpactCategories: false,
+          lcaVerificationIso14044: false,
+          personConductingLca: false,
+          lcaSoftware: false,
+          iso21930Compliance: false,
+          epdVerificationIso14025: false,
+          externalIndependentReviewer: false,
+          epdFile: ''
+        };
+      case 'LCA':
+        return {
+          ...baseFields,
+          lcaOptimizationType: '',
+          milestonesForImprovements: false,
+          narrativeActions: false,
+          targetImpactAreas: false,
+          companyExecutiveSignature: false,
+          summaryLargestImpacts: false,
+          sameOptimizationPcr: false,
+          optimizationLcaVerification: false,
+          personConductingOptimizationLca: false,
+          optimizationLcaSoftware: false,
+          comparativeAnalysis: false,
+          narrativeReductions: false,
+          reductionGwp10: false,
+          reductionGwp20: false,
+          reductionAdditionalCategories: false,
+          lcaFile: ''
+        };
+      case 'Manufacturer Inventory':
+        return {
+          ...baseFields,
+          manufacturerInventoryType: '',
+          documentId: false,
+          inventoryAssessed1000ppm: false,
+          inventoryAssessed100ppm: false,
+          allIngredientsName: false,
+          allIngredientsCasrn: false,
+          ingredientRoleAmount: false,
+          hazardScoreClass: false,
+          noGreenScreenLt1: false,
+          greenScreen95wt: false,
+          remaining5Inventoried: false,
+          externalIndependentReviewer: false,
+          miFile: ''
+        };
+      case 'REACH Optimization':
+        return {
+          ...baseFields,
+          reportType: '',
+          documentId: false,
+          inventoryAssessed100ppm: false,
+          noAuthorizationListXiv: false,
+          noAuthorizationListXvii: false,
+          noSvhcCandidateList: false,
+          identificationAuthor: false,
+          reachFile: ''
+        };
+      case 'Health Product Declaration':
+        return {
+          ...baseFields,
+          hpdType: '',
+          documentId: false,
+          inventoryAssessed1000ppm: false,
+          inventoryAssessed100ppm: false,
+          hazardsFullDisclosed: false,
+          noGreenScreenLt1: false,
+          greenScreen95wt: false,
+          remaining5Inventoried: false,
+          externalIndependentReviewer: false,
+          hpdFile: ''
+        };
+      case 'C2C':
+        return {
+          ...baseFields,
+          c2cType: '',
+          cleanAirScore: 'None',
+          waterSoilScore: 'None',
+          socialFairnessScore: 'None',
+          productCircularityScore: 'None',
+          additionalAchievement: '',
+          documentId: false,
+          inventoryAssessed1000ppm: false,
+          c2cFile: ''
+        };
+      case 'Declare':
+        return {
+          ...baseFields,
+          declareType: '',
+          documentId: false,
+          inventoryAssessed1000ppm: false,
+          externalIndependentReviewer: false,
+          declareFile: ''
+        };
+      case 'Product Circularity':
+        return {
+          ...baseFields,
+          reusedSalvage: '',
+          biobasedRecycledContent: '',
+          extendedProducerResponsability: '',
+          productCircularityFile: ''
+        };
+      case 'Global Green Tag Product Health Declaration':
+        return {
+          ...baseFields,
+          conformity: 100,
+          ggtphdFile: ''
+        };
+      case 'FSC / PEFC':
+        return {
+          ...baseFields,
+          conformity: 100,
+          fscPefcFile: ''
+        };
+      case 'ECOLABEL':
+        return {
+          ...baseFields,
+          conformity: 100,
+          ecolabelFile: ''
+        };
+      default:
+        return baseFields;
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    calculateConformity();
+    
+    // Only calculate conformity if it's 0 or not set
+    if (formData.conformity === 0) {
+      calculateConformity();
+    }
     
     const evaluationData = {
       ...formData,
@@ -346,7 +483,7 @@ export function EvaluationForm({ evaluation, onClose, onSave }: EvaluationFormPr
                   <SelectItem value="Not compliant">Not compliant</SelectItem>
                   <SelectItem value="LCA impact reduction action plan">LCA impact reduction action plan</SelectItem>
                   <SelectItem value="Verified impact reductions in GWP">Verified impact reductions in GWP</SelectItem>
-                  <SelectItem value="Verified impact reduction in GWP > 10%">Verified impact reduction in GWP {'>'} 10%</SelectItem>
+                  <SelectItem value="Verified impact reduction in GWP > 10%">Verified impact reduction in GWP {'>'}10%</SelectItem>
                   <SelectItem value="Verified impact reduction in GWP > 20% + in two other > 5%">Verified impact reduction in GWP {'>'} 20% + in two other {'>'} 5%</SelectItem>
                 </SelectContent>
               </Select>
@@ -598,7 +735,7 @@ export function EvaluationForm({ evaluation, onClose, onSave }: EvaluationFormPr
                     variant="ghost"
                     size="icon"
                     onClick={() => {
-                      setFormData(prev => ({ ...prev, fileName: '' }));
+                      setFormData((prev: any) => ({ ...prev, fileName: '' }));
                       setSelectedFile(null);
                     }}
                   >
