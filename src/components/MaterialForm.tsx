@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,6 +36,7 @@ export function MaterialForm({ material, onClose, onSave }) {
   useEffect(() => {
     if (material) {
       console.log('Loading material for editing:', material);
+      console.log('Material evaluations:', material.evaluations);
       // Ensure all fields are populated, including fallbacks for undefined values
       setFormData({
         name: material.name || '',
@@ -71,14 +71,20 @@ export function MaterialForm({ material, onClose, onSave }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     console.log('Saving material with data:', formData);
+    console.log('Evaluations being saved:', formData.evaluations);
     
     const savedMaterial = {
       ...formData,
-      evaluations: formData.evaluations.map(evaluation => ({
-        ...evaluation,
-        id: evaluation.id || Date.now() + Math.random()
-      }))
+      evaluations: formData.evaluations.map(evaluation => {
+        console.log('Processing evaluation for save:', evaluation);
+        return {
+          ...evaluation,
+          id: evaluation.id || Date.now() + Math.random()
+        };
+      })
     };
+    
+    console.log('Final material to save:', savedMaterial);
     onSave(savedMaterial);
   };
 
@@ -102,6 +108,8 @@ export function MaterialForm({ material, onClose, onSave }) {
       ...getInitialEvaluationFields(type)
     };
     
+    console.log('Adding new evaluation:', newEvaluation);
+    
     setFormData(prev => ({
       ...prev,
       evaluations: [...prev.evaluations, newEvaluation]
@@ -110,6 +118,7 @@ export function MaterialForm({ material, onClose, onSave }) {
   };
 
   const removeEvaluation = (index) => {
+    console.log('Removing evaluation at index:', index);
     setFormData(prev => ({
       ...prev,
       evaluations: prev.evaluations.filter((_, i) => i !== index)
@@ -119,11 +128,22 @@ export function MaterialForm({ material, onClose, onSave }) {
 
   const updateEvaluation = (index, evaluationData) => {
     console.log('Updating evaluation at index', index, 'with data:', evaluationData);
+    console.log('Current evaluations before update:', formData.evaluations);
+    
+    const updatedEvaluations = formData.evaluations.map((currentEvaluation, i) => {
+      if (i === index) {
+        const updated = { ...currentEvaluation, ...evaluationData };
+        console.log('Updated evaluation:', updated);
+        return updated;
+      }
+      return currentEvaluation;
+    });
+    
+    console.log('All evaluations after update:', updatedEvaluations);
+    
     setFormData(prev => ({
       ...prev,
-      evaluations: prev.evaluations.map((currentEvaluation, i) => 
-        i === index ? { ...currentEvaluation, ...evaluationData } : currentEvaluation
-      )
+      evaluations: updatedEvaluations
     }));
   };
 
@@ -295,6 +315,9 @@ export function MaterialForm({ material, onClose, onSave }) {
 
   const availableSubcategories = formData.category ? config.subcategories[formData.category] || [] : [];
 
+  console.log('Current formData in render:', formData);
+  console.log('Current evaluations in render:', formData.evaluations);
+
   return (
     <Dialog open={true} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-[#282828] border-[#424242] text-white">
@@ -398,38 +421,47 @@ export function MaterialForm({ material, onClose, onSave }) {
             {formData.evaluations.length > 0 && (
               <Tabs value={activeEvaluationIndex.toString()} onValueChange={(value) => setActiveEvaluationIndex(parseInt(value))}>
                 <TabsList className="bg-[#323232] mb-4 flex-wrap">
-                  {formData.evaluations.map((evaluation, index) => (
-                    <TabsTrigger 
-                      key={evaluation.id || index} 
-                      value={index.toString()}
-                      className="data-[state=active]:bg-[#424242] relative group"
-                    >
-                      {getEvaluationDisplayName(evaluation, index)}
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        className="ml-2 h-4 w-4 p-0 hover:bg-[#8C3535] opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          removeEvaluation(index);
-                        }}
+                  {formData.evaluations.map((evaluation, index) => {
+                    console.log(`Rendering tab for evaluation ${index}:`, evaluation);
+                    return (
+                      <TabsTrigger 
+                        key={evaluation.id || index} 
+                        value={index.toString()}
+                        className="data-[state=active]:bg-[#424242] relative group"
                       >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </TabsTrigger>
-                  ))}
+                        {getEvaluationDisplayName(evaluation, index)}
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="ml-2 h-4 w-4 p-0 hover:bg-[#8C3535] opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeEvaluation(index);
+                          }}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </TabsTrigger>
+                    );
+                  })}
                 </TabsList>
 
-                {formData.evaluations.map((evaluation, index) => (
-                  <TabsContent key={evaluation.id || index} value={index.toString()}>
-                    <EvaluationForm
-                      evaluation={evaluation}
-                      onClose={() => setActiveEvaluationIndex(-1)}
-                      onSave={(updatedEvaluation) => updateEvaluation(index, updatedEvaluation)}
-                    />
-                  </TabsContent>
-                ))}
+                {formData.evaluations.map((evaluation, index) => {
+                  console.log(`Rendering EvaluationForm for evaluation ${index}:`, evaluation);
+                  return (
+                    <TabsContent key={evaluation.id || index} value={index.toString()}>
+                      <EvaluationForm
+                        evaluation={evaluation}
+                        onClose={() => setActiveEvaluationIndex(-1)}
+                        onSave={(updatedEvaluation) => {
+                          console.log('EvaluationForm onSave called with:', updatedEvaluation);
+                          updateEvaluation(index, updatedEvaluation);
+                        }}
+                      />
+                    </TabsContent>
+                  );
+                })}
               </Tabs>
             )}
           </div>
