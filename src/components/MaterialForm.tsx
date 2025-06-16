@@ -36,18 +36,34 @@ export function MaterialForm({ material, onClose, onSave }) {
   useEffect(() => {
     if (material) {
       console.log('Loading material for editing:', material);
-      console.log('Material evaluations:', material.evaluations);
-      // Ensure all fields are populated, including fallbacks for undefined values
+      console.log('Material evaluations loaded:', material.evaluations);
+      
+      // Ensure evaluations are properly structured
+      const evaluations = material.evaluations || [];
+      console.log('Processing evaluations:', evaluations);
+      
       setFormData({
         name: material.name || '',
         manufacturer: material.manufacturer || '',
         category: material.category || '',
         subcategory: material.subcategory || '',
         description: material.description || '',
-        evaluations: material.evaluations || []
+        evaluations: evaluations.map(evaluation => {
+          console.log('Processing individual evaluation:', evaluation);
+          return {
+            ...evaluation,
+            // Ensure required fields have defaults
+            id: evaluation.id || Date.now() + Math.random(),
+            type: evaluation.type || '',
+            version: evaluation.version || '',
+            issueDate: evaluation.issueDate || '',
+            validTo: evaluation.validTo || '',
+            conformity: evaluation.conformity || 0,
+            geographicArea: evaluation.geographicArea || 'Global'
+          };
+        })
       });
     } else {
-      // Reset form for new material
       setFormData({
         name: '',
         manufacturer: '',
@@ -70,13 +86,15 @@ export function MaterialForm({ material, onClose, onSave }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    console.log('Saving material with data:', formData);
+    console.log('=== SAVING MATERIAL ===');
+    console.log('Form data being saved:', formData);
     console.log('Evaluations being saved:', formData.evaluations);
     
+    // Ensure all evaluation data is preserved
     const savedMaterial = {
       ...formData,
       evaluations: formData.evaluations.map(evaluation => {
-        console.log('Processing evaluation for save:', evaluation);
+        console.log('Final evaluation data:', evaluation);
         return {
           ...evaluation,
           id: evaluation.id || Date.now() + Math.random()
@@ -84,7 +102,7 @@ export function MaterialForm({ material, onClose, onSave }) {
       })
     };
     
-    console.log('Final material to save:', savedMaterial);
+    console.log('Final material data to save:', savedMaterial);
     onSave(savedMaterial);
   };
 
@@ -110,10 +128,14 @@ export function MaterialForm({ material, onClose, onSave }) {
     
     console.log('Adding new evaluation:', newEvaluation);
     
-    setFormData(prev => ({
-      ...prev,
-      evaluations: [...prev.evaluations, newEvaluation]
-    }));
+    setFormData(prev => {
+      const updatedData = {
+        ...prev,
+        evaluations: [...prev.evaluations, newEvaluation]
+      };
+      console.log('Updated form data after adding evaluation:', updatedData);
+      return updatedData;
+    });
     setActiveEvaluationIndex(formData.evaluations.length);
   };
 
@@ -127,24 +149,34 @@ export function MaterialForm({ material, onClose, onSave }) {
   };
 
   const updateEvaluation = (index, evaluationData) => {
-    console.log('Updating evaluation at index', index, 'with data:', evaluationData);
+    console.log('=== UPDATING EVALUATION ===');
+    console.log('Index:', index);
+    console.log('New evaluation data received:', evaluationData);
     console.log('Current evaluations before update:', formData.evaluations);
     
-    const updatedEvaluations = formData.evaluations.map((currentEvaluation, i) => {
-      if (i === index) {
-        const updated = { ...currentEvaluation, ...evaluationData };
-        console.log('Updated evaluation:', updated);
-        return updated;
-      }
-      return currentEvaluation;
+    setFormData(prev => {
+      const updatedEvaluations = prev.evaluations.map((currentEvaluation, i) => {
+        if (i === index) {
+          const updated = { 
+            ...currentEvaluation, 
+            ...evaluationData,
+            // Preserve the ID
+            id: currentEvaluation.id || Date.now() + Math.random()
+          };
+          console.log('Updated evaluation at index', i, ':', updated);
+          return updated;
+        }
+        return currentEvaluation;
+      });
+      
+      const newFormData = {
+        ...prev,
+        evaluations: updatedEvaluations
+      };
+      
+      console.log('New form data after evaluation update:', newFormData);
+      return newFormData;
     });
-    
-    console.log('All evaluations after update:', updatedEvaluations);
-    
-    setFormData(prev => ({
-      ...prev,
-      evaluations: updatedEvaluations
-    }));
   };
 
   const getInitialEvaluationFields = (type) => {
@@ -315,8 +347,9 @@ export function MaterialForm({ material, onClose, onSave }) {
 
   const availableSubcategories = formData.category ? config.subcategories[formData.category] || [] : [];
 
-  console.log('Current formData in render:', formData);
-  console.log('Current evaluations in render:', formData.evaluations);
+  console.log('=== RENDER DEBUG ===');
+  console.log('Current formData:', formData);
+  console.log('Current evaluations:', formData.evaluations);
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
@@ -455,7 +488,8 @@ export function MaterialForm({ material, onClose, onSave }) {
                         evaluation={evaluation}
                         onClose={() => setActiveEvaluationIndex(-1)}
                         onSave={(updatedEvaluation) => {
-                          console.log('EvaluationForm onSave called with:', updatedEvaluation);
+                          console.log('=== EvaluationForm onSave called ===');
+                          console.log('Updated evaluation data:', updatedEvaluation);
                           updateEvaluation(index, updatedEvaluation);
                         }}
                       />
