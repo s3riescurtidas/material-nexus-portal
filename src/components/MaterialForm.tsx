@@ -38,7 +38,7 @@ export function MaterialForm({ material, onClose, onSave }) {
       console.log('Loading material for editing:', material);
       console.log('Material evaluations loaded:', material.evaluations);
       
-      // Ensure evaluations are properly structured
+      // Ensure evaluations are properly structured with field normalization
       const evaluations = material.evaluations || [];
       console.log('Processing evaluations:', evaluations);
       
@@ -50,17 +50,29 @@ export function MaterialForm({ material, onClose, onSave }) {
         description: material.description || '',
         evaluations: evaluations.map(evaluation => {
           console.log('Processing individual evaluation:', evaluation);
-          return {
+          
+          // Normalize field names to ensure consistency
+          const normalizedEvaluation = {
             ...evaluation,
-            // Ensure required fields have defaults
             id: evaluation.id || Date.now() + Math.random(),
             type: evaluation.type || '',
             version: evaluation.version || '',
-            issueDate: evaluation.issueDate || '',
-            validTo: evaluation.validTo || '',
+            issueDate: evaluation.issueDate || evaluation.dataEmissao || '',
+            validTo: evaluation.validTo || evaluation.validoAte || '',
             conformity: evaluation.conformity || 0,
-            geographicArea: evaluation.geographicArea || 'Global'
+            geographicArea: evaluation.geographicArea || evaluation.areaGeografica || 'Global'
           };
+          
+          // Handle Product Circularity specific fields with proper mapping
+          if (evaluation.type === 'Product Circularity') {
+            normalizedEvaluation.reusedOrSalvage = evaluation.reusedOrSalvage || evaluation.reusedSalvage || '';
+            normalizedEvaluation.biobasedAndRecycledContent = evaluation.biobasedAndRecycledContent || evaluation.biobasedRecycledContent || '';
+            normalizedEvaluation.extendedProducerResponsabilityProgram = evaluation.extendedProducerResponsabilityProgram || evaluation.extendedProducerResponsability || '';
+            normalizedEvaluation.productCircularityFile = evaluation.productCircularityFile || '';
+          }
+          
+          console.log('Normalized evaluation:', normalizedEvaluation);
+          return normalizedEvaluation;
         })
       });
     } else {
@@ -90,15 +102,35 @@ export function MaterialForm({ material, onClose, onSave }) {
     console.log('Form data being saved:', formData);
     console.log('Evaluations being saved:', formData.evaluations);
     
-    // Ensure all evaluation data is preserved
+    // Ensure all evaluation data is preserved with proper field mapping
     const savedMaterial = {
       ...formData,
       evaluations: formData.evaluations.map(evaluation => {
-        console.log('Final evaluation data:', evaluation);
-        return {
+        console.log('Final evaluation data before save:', evaluation);
+        
+        // Normalize all field names for consistent storage
+        const normalizedForSave = {
           ...evaluation,
-          id: evaluation.id || Date.now() + Math.random()
+          id: evaluation.id || Date.now() + Math.random(),
+          // Ensure core fields are preserved
+          type: evaluation.type,
+          version: evaluation.version || '',
+          issueDate: evaluation.issueDate,
+          validTo: evaluation.validTo,
+          conformity: evaluation.conformity || 0,
+          geographicArea: evaluation.geographicArea || 'Global'
         };
+        
+        // Handle Product Circularity fields specifically
+        if (evaluation.type === 'Product Circularity') {
+          normalizedForSave.reusedOrSalvage = evaluation.reusedOrSalvage || '';
+          normalizedForSave.biobasedAndRecycledContent = evaluation.biobasedAndRecycledContent || '';
+          normalizedForSave.extendedProducerResponsabilityProgram = evaluation.extendedProducerResponsabilityProgram || '';
+          normalizedForSave.productCircularityFile = evaluation.productCircularityFile || '';
+        }
+        
+        console.log('Normalized evaluation for save:', normalizedForSave);
+        return normalizedForSave;
       })
     };
     
@@ -157,12 +189,21 @@ export function MaterialForm({ material, onClose, onSave }) {
     setFormData(prev => {
       const updatedEvaluations = prev.evaluations.map((currentEvaluation, i) => {
         if (i === index) {
+          // Merge data while preserving all fields, especially core ones
           const updated = { 
-            ...currentEvaluation, 
+            ...currentEvaluation,
             ...evaluationData,
-            // Preserve the ID
-            id: currentEvaluation.id || Date.now() + Math.random()
+            // Ensure ID is preserved
+            id: currentEvaluation.id || Date.now() + Math.random(),
+            // Ensure core fields are always preserved from the update
+            type: evaluationData.type || currentEvaluation.type,
+            version: evaluationData.version !== undefined ? evaluationData.version : currentEvaluation.version,
+            issueDate: evaluationData.issueDate !== undefined ? evaluationData.issueDate : currentEvaluation.issueDate,
+            validTo: evaluationData.validTo !== undefined ? evaluationData.validTo : currentEvaluation.validTo,
+            conformity: evaluationData.conformity !== undefined ? evaluationData.conformity : currentEvaluation.conformity,
+            geographicArea: evaluationData.geographicArea !== undefined ? evaluationData.geographicArea : currentEvaluation.geographicArea
           };
+          
           console.log('Updated evaluation at index', i, ':', updated);
           return updated;
         }
@@ -489,7 +530,7 @@ export function MaterialForm({ material, onClose, onSave }) {
                         onClose={() => setActiveEvaluationIndex(-1)}
                         onSave={(updatedEvaluation) => {
                           console.log('=== EvaluationForm onSave called ===');
-                          console.log('Updated evaluation data:', updatedEvaluation);
+                          console.log('Updated evaluation data received from form:', updatedEvaluation);
                           updateEvaluation(index, updatedEvaluation);
                         }}
                       />
