@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -52,6 +51,18 @@ export function MaterialDetails({
   const [editingIndex, setEditingIndex] = useState<number>(-1);
   const [currentMaterial, setCurrentMaterial] = useState<Material>(material);
 
+  // Convert component evaluation to database evaluation
+  const convertToDBEvaluation = (evaluation: Evaluation) => ({
+    ...evaluation,
+    id: parseInt(evaluation.id) || Date.now()
+  });
+
+  // Convert database evaluation to component evaluation
+  const convertFromDBEvaluation = (dbEvaluation: any) => ({
+    ...dbEvaluation,
+    id: String(dbEvaluation.id)
+  });
+
   const handleSaveEvaluation = async (evaluationData: any) => {
     console.log('MaterialDetails - Saving evaluation:', evaluationData);
     
@@ -76,17 +87,27 @@ export function MaterialDetails({
         updatedEvaluations = [...currentMaterial.evaluations, newEvaluation];
       }
       
+      // Convert evaluations to database format
+      const dbEvaluations = updatedEvaluations.map(convertToDBEvaluation);
+      
       const updatedMaterial = {
         ...currentMaterial,
-        evaluations: updatedEvaluations,
+        evaluations: dbEvaluations,
+        createdAt: currentMaterial.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
       
       console.log('Updating material in database:', updatedMaterial);
       await localDB.updateMaterial(updatedMaterial);
       
-      setCurrentMaterial(updatedMaterial);
-      onMaterialUpdate(updatedMaterial);
+      // Convert back to component format for state
+      const componentMaterial = {
+        ...updatedMaterial,
+        evaluations: updatedEvaluations
+      };
+      
+      setCurrentMaterial(componentMaterial);
+      onMaterialUpdate(componentMaterial);
       
       setShowEvaluationForm(false);
       setEditingEvaluation(null);
@@ -104,17 +125,28 @@ export function MaterialDetails({
       
       try {
         const updatedEvaluations = currentMaterial.evaluations.filter((_, i) => i !== index);
+        
+        // Convert evaluations to database format
+        const dbEvaluations = updatedEvaluations.map(convertToDBEvaluation);
+        
         const updatedMaterial = {
           ...currentMaterial,
-          evaluations: updatedEvaluations,
+          evaluations: dbEvaluations,
+          createdAt: currentMaterial.createdAt || new Date().toISOString(),
           updatedAt: new Date().toISOString()
         };
         
         console.log('Updating material after deletion:', updatedMaterial);
         await localDB.updateMaterial(updatedMaterial);
         
-        setCurrentMaterial(updatedMaterial);
-        onMaterialUpdate(updatedMaterial);
+        // Convert back to component format for state
+        const componentMaterial = {
+          ...updatedMaterial,
+          evaluations: updatedEvaluations
+        };
+        
+        setCurrentMaterial(componentMaterial);
+        onMaterialUpdate(componentMaterial);
         
         console.log('Evaluation deleted successfully');
       } catch (error) {

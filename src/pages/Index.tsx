@@ -80,6 +80,15 @@ export default function Index() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedEvaluation, setSelectedEvaluation] = useState<Evaluation | null>(null);
 
+  // Convert database material to component material
+  const convertFromDBMaterial = (dbMaterial: any): Material => ({
+    ...dbMaterial,
+    evaluations: dbMaterial.evaluations.map((dbEval: any) => ({
+      ...dbEval,
+      id: String(dbEval.id)
+    }))
+  });
+
   // Initialize database and load data
   useEffect(() => {
     initializeApp();
@@ -106,7 +115,9 @@ export default function Index() {
         localDB.getConfig()
       ]);
 
-      setMaterials(dbMaterials);
+      // Convert database materials to component materials
+      const convertedMaterials = dbMaterials.map(convertFromDBMaterial);
+      setMaterials(convertedMaterials);
       setProjects(dbProjects);
       setManufacturers(config.manufacturers);
       setCategories(config.categories);
