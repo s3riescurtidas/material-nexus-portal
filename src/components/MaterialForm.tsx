@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,14 +36,17 @@ export function MaterialForm({ material, onClose, onSave }) {
   useEffect(() => {
     if (material) {
       console.log('Loading material for editing:', material);
+      // Ensure evaluations is always an array
+      const evaluations = Array.isArray(material.evaluations) ? material.evaluations : [];
       setFormData({
         name: material.name || '',
         manufacturer: material.manufacturer || '',
         category: material.category || '',
         subcategory: material.subcategory || '',
         description: material.description || '',
-        evaluations: material.evaluations || []
+        evaluations: evaluations
       });
+      console.log('Loaded evaluations:', evaluations);
     } else {
       setFormData({
         name: '',
@@ -68,7 +70,8 @@ export function MaterialForm({ material, onClose, onSave }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    console.log('Saving material with evaluations:', formData);
+    console.log('Submitting material with evaluations:', formData);
+    console.log('Evaluations count:', formData.evaluations.length);
     onSave(formData);
   };
 
@@ -81,7 +84,7 @@ export function MaterialForm({ material, onClose, onSave }) {
 
   const addEvaluation = (type) => {
     const newEvaluation = {
-      id: Date.now() + Math.random(),
+      id: `eval_${Date.now()}_${Math.random()}`,
       type,
       version: '',
       issueDate: '',
@@ -94,11 +97,11 @@ export function MaterialForm({ material, onClose, onSave }) {
     console.log('Adding new evaluation:', newEvaluation);
     
     setFormData(prev => {
-      const newEvaluations = [...prev.evaluations, newEvaluation];
-      console.log('Updated evaluations after add:', newEvaluations);
+      const updatedEvaluations = [...prev.evaluations, newEvaluation];
+      console.log('Updated evaluations after add:', updatedEvaluations);
       return {
         ...prev,
-        evaluations: newEvaluations
+        evaluations: updatedEvaluations
       };
     });
     
@@ -108,36 +111,44 @@ export function MaterialForm({ material, onClose, onSave }) {
 
   const removeEvaluation = (index) => {
     console.log('Removing evaluation at index:', index);
+    console.log('Current evaluations before remove:', formData.evaluations);
     
     setFormData(prev => {
-      const newEvaluations = prev.evaluations.filter((_, i) => i !== index);
-      console.log('Updated evaluations after remove:', newEvaluations);
+      const updatedEvaluations = prev.evaluations.filter((_, i) => i !== index);
+      console.log('Updated evaluations after remove:', updatedEvaluations);
       return {
         ...prev,
-        evaluations: newEvaluations
+        evaluations: updatedEvaluations
       };
     });
     
-    // Reset active tab
-    setActiveEvaluationIndex(-1);
+    // Reset active tab if we deleted the active one
+    if (activeEvaluationIndex === index) {
+      setActiveEvaluationIndex(-1);
+    } else if (activeEvaluationIndex > index) {
+      setActiveEvaluationIndex(activeEvaluationIndex - 1);
+    }
   };
 
   const updateEvaluation = (index, updatedData) => {
-    console.log('Updating evaluation at index:', index, 'with data:', updatedData);
+    console.log('Updating evaluation at index:', index);
+    console.log('Update data received:', updatedData);
+    console.log('Current evaluations before update:', formData.evaluations);
     
     setFormData(prev => {
-      const newEvaluations = [...prev.evaluations];
-      newEvaluations[index] = {
-        ...newEvaluations[index],
+      const updatedEvaluations = [...prev.evaluations];
+      // Merge the updated data with existing evaluation
+      updatedEvaluations[index] = {
+        ...updatedEvaluations[index],
         ...updatedData
       };
       
-      console.log('Updated evaluation:', newEvaluations[index]);
-      console.log('All evaluations after update:', newEvaluations);
+      console.log('Updated evaluation at index', index, ':', updatedEvaluations[index]);
+      console.log('All evaluations after update:', updatedEvaluations);
       
       return {
         ...prev,
-        evaluations: newEvaluations
+        evaluations: updatedEvaluations
       };
     });
   };
@@ -312,6 +323,7 @@ export function MaterialForm({ material, onClose, onSave }) {
 
   console.log('Current form state:', formData);
   console.log('Current evaluations:', formData.evaluations);
+  console.log('Active evaluation index:', activeEvaluationIndex);
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
@@ -445,7 +457,7 @@ export function MaterialForm({ material, onClose, onSave }) {
                       evaluation={evaluation}
                       onClose={() => setActiveEvaluationIndex(-1)}
                       onSave={(updatedEvaluation) => {
-                        console.log('EvaluationForm onSave - received data:', updatedEvaluation);
+                        console.log('EvaluationForm onSave called with:', updatedEvaluation);
                         updateEvaluation(index, updatedEvaluation);
                       }}
                     />
