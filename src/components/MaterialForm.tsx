@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,44 +37,13 @@ export function MaterialForm({ material, onClose, onSave }) {
   useEffect(() => {
     if (material) {
       console.log('Loading material for editing:', material);
-      console.log('Material evaluations loaded:', material.evaluations);
-      
-      // Ensure evaluations are properly structured with field normalization
-      const evaluations = material.evaluations || [];
-      console.log('Processing evaluations:', evaluations);
-      
       setFormData({
         name: material.name || '',
         manufacturer: material.manufacturer || '',
         category: material.category || '',
         subcategory: material.subcategory || '',
         description: material.description || '',
-        evaluations: evaluations.map(evaluation => {
-          console.log('Processing individual evaluation:', evaluation);
-          
-          // Normalize field names to ensure consistency
-          const normalizedEvaluation = {
-            ...evaluation,
-            id: evaluation.id || Date.now() + Math.random(),
-            type: evaluation.type || '',
-            version: evaluation.version || '',
-            issueDate: evaluation.issueDate || evaluation.dataEmissao || '',
-            validTo: evaluation.validTo || evaluation.validoAte || '',
-            conformity: evaluation.conformity || 0,
-            geographicArea: evaluation.geographicArea || evaluation.areaGeografica || 'Global'
-          };
-          
-          // Handle Product Circularity specific fields with proper mapping
-          if (evaluation.type === 'Product Circularity') {
-            normalizedEvaluation.reusedOrSalvage = evaluation.reusedOrSalvage || evaluation.reusedSalvage || '';
-            normalizedEvaluation.biobasedAndRecycledContent = evaluation.biobasedAndRecycledContent || evaluation.biobasedRecycledContent || '';
-            normalizedEvaluation.extendedProducerResponsabilityProgram = evaluation.extendedProducerResponsabilityProgram || evaluation.extendedProducerResponsability || '';
-            normalizedEvaluation.productCircularityFile = evaluation.productCircularityFile || '';
-          }
-          
-          console.log('Normalized evaluation:', normalizedEvaluation);
-          return normalizedEvaluation;
-        })
+        evaluations: material.evaluations || []
       });
     } else {
       setFormData({
@@ -98,48 +68,11 @@ export function MaterialForm({ material, onClose, onSave }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    console.log('=== SAVING MATERIAL ===');
-    console.log('Form data being saved:', formData);
-    console.log('Evaluations being saved:', formData.evaluations);
-    
-    // Ensure all evaluation data is preserved with proper field mapping
-    const savedMaterial = {
-      ...formData,
-      evaluations: formData.evaluations.map(evaluation => {
-        console.log('Final evaluation data before save:', evaluation);
-        
-        // Normalize all field names for consistent storage
-        const normalizedForSave = {
-          ...evaluation,
-          id: evaluation.id || Date.now() + Math.random(),
-          // Ensure core fields are preserved
-          type: evaluation.type,
-          version: evaluation.version || '',
-          issueDate: evaluation.issueDate,
-          validTo: evaluation.validTo,
-          conformity: evaluation.conformity || 0,
-          geographicArea: evaluation.geographicArea || 'Global'
-        };
-        
-        // Handle Product Circularity fields specifically
-        if (evaluation.type === 'Product Circularity') {
-          normalizedForSave.reusedOrSalvage = evaluation.reusedOrSalvage || '';
-          normalizedForSave.biobasedAndRecycledContent = evaluation.biobasedAndRecycledContent || '';
-          normalizedForSave.extendedProducerResponsabilityProgram = evaluation.extendedProducerResponsabilityProgram || '';
-          normalizedForSave.productCircularityFile = evaluation.productCircularityFile || '';
-        }
-        
-        console.log('Normalized evaluation for save:', normalizedForSave);
-        return normalizedForSave;
-      })
-    };
-    
-    console.log('Final material data to save:', savedMaterial);
-    onSave(savedMaterial);
+    console.log('Saving material with evaluations:', formData);
+    onSave(formData);
   };
 
   const handleInputChange = (field, value) => {
-    console.log(`Updating ${field} to:`, value);
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -161,62 +94,51 @@ export function MaterialForm({ material, onClose, onSave }) {
     console.log('Adding new evaluation:', newEvaluation);
     
     setFormData(prev => {
-      const updatedData = {
+      const newEvaluations = [...prev.evaluations, newEvaluation];
+      console.log('Updated evaluations after add:', newEvaluations);
+      return {
         ...prev,
-        evaluations: [...prev.evaluations, newEvaluation]
+        evaluations: newEvaluations
       };
-      console.log('Updated form data after adding evaluation:', updatedData);
-      return updatedData;
     });
+    
+    // Set active tab to the new evaluation
     setActiveEvaluationIndex(formData.evaluations.length);
   };
 
   const removeEvaluation = (index) => {
     console.log('Removing evaluation at index:', index);
-    setFormData(prev => ({
-      ...prev,
-      evaluations: prev.evaluations.filter((_, i) => i !== index)
-    }));
+    
+    setFormData(prev => {
+      const newEvaluations = prev.evaluations.filter((_, i) => i !== index);
+      console.log('Updated evaluations after remove:', newEvaluations);
+      return {
+        ...prev,
+        evaluations: newEvaluations
+      };
+    });
+    
+    // Reset active tab
     setActiveEvaluationIndex(-1);
   };
 
-  const updateEvaluation = (index, evaluationData) => {
-    console.log('=== UPDATING EVALUATION ===');
-    console.log('Index:', index);
-    console.log('New evaluation data received:', evaluationData);
-    console.log('Current evaluations before update:', formData.evaluations);
+  const updateEvaluation = (index, updatedData) => {
+    console.log('Updating evaluation at index:', index, 'with data:', updatedData);
     
     setFormData(prev => {
-      const updatedEvaluations = prev.evaluations.map((currentEvaluation, i) => {
-        if (i === index) {
-          // Merge data while preserving all fields, especially core ones
-          const updated = { 
-            ...currentEvaluation,
-            ...evaluationData,
-            // Ensure ID is preserved
-            id: currentEvaluation.id || Date.now() + Math.random(),
-            // Ensure core fields are always preserved from the update
-            type: evaluationData.type || currentEvaluation.type,
-            version: evaluationData.version !== undefined ? evaluationData.version : currentEvaluation.version,
-            issueDate: evaluationData.issueDate !== undefined ? evaluationData.issueDate : currentEvaluation.issueDate,
-            validTo: evaluationData.validTo !== undefined ? evaluationData.validTo : currentEvaluation.validTo,
-            conformity: evaluationData.conformity !== undefined ? evaluationData.conformity : currentEvaluation.conformity,
-            geographicArea: evaluationData.geographicArea !== undefined ? evaluationData.geographicArea : currentEvaluation.geographicArea
-          };
-          
-          console.log('Updated evaluation at index', i, ':', updated);
-          return updated;
-        }
-        return currentEvaluation;
-      });
-      
-      const newFormData = {
-        ...prev,
-        evaluations: updatedEvaluations
+      const newEvaluations = [...prev.evaluations];
+      newEvaluations[index] = {
+        ...newEvaluations[index],
+        ...updatedData
       };
       
-      console.log('New form data after evaluation update:', newFormData);
-      return newFormData;
+      console.log('Updated evaluation:', newEvaluations[index]);
+      console.log('All evaluations after update:', newEvaluations);
+      
+      return {
+        ...prev,
+        evaluations: newEvaluations
+      };
     });
   };
 
@@ -388,8 +310,7 @@ export function MaterialForm({ material, onClose, onSave }) {
 
   const availableSubcategories = formData.category ? config.subcategories[formData.category] || [] : [];
 
-  console.log('=== RENDER DEBUG ===');
-  console.log('Current formData:', formData);
+  console.log('Current form state:', formData);
   console.log('Current evaluations:', formData.evaluations);
 
   return (
@@ -495,48 +416,41 @@ export function MaterialForm({ material, onClose, onSave }) {
             {formData.evaluations.length > 0 && (
               <Tabs value={activeEvaluationIndex.toString()} onValueChange={(value) => setActiveEvaluationIndex(parseInt(value))}>
                 <TabsList className="bg-[#323232] mb-4 flex-wrap">
-                  {formData.evaluations.map((evaluation, index) => {
-                    console.log(`Rendering tab for evaluation ${index}:`, evaluation);
-                    return (
-                      <TabsTrigger 
-                        key={evaluation.id || index} 
-                        value={index.toString()}
-                        className="data-[state=active]:bg-[#424242] relative group"
+                  {formData.evaluations.map((evaluation, index) => (
+                    <TabsTrigger 
+                      key={evaluation.id || index} 
+                      value={index.toString()}
+                      className="data-[state=active]:bg-[#424242] relative group"
+                    >
+                      {getEvaluationDisplayName(evaluation, index)}
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="ml-2 h-4 w-4 p-0 hover:bg-[#8C3535] opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeEvaluation(index);
+                        }}
                       >
-                        {getEvaluationDisplayName(evaluation, index)}
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="ghost"
-                          className="ml-2 h-4 w-4 p-0 hover:bg-[#8C3535] opacity-0 group-hover:opacity-100 transition-opacity"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            removeEvaluation(index);
-                          }}
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </TabsTrigger>
-                    );
-                  })}
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </TabsTrigger>
+                  ))}
                 </TabsList>
 
-                {formData.evaluations.map((evaluation, index) => {
-                  console.log(`Rendering EvaluationForm for evaluation ${index}:`, evaluation);
-                  return (
-                    <TabsContent key={evaluation.id || index} value={index.toString()}>
-                      <EvaluationForm
-                        evaluation={evaluation}
-                        onClose={() => setActiveEvaluationIndex(-1)}
-                        onSave={(updatedEvaluation) => {
-                          console.log('=== EvaluationForm onSave called ===');
-                          console.log('Updated evaluation data received from form:', updatedEvaluation);
-                          updateEvaluation(index, updatedEvaluation);
-                        }}
-                      />
-                    </TabsContent>
-                  );
-                })}
+                {formData.evaluations.map((evaluation, index) => (
+                  <TabsContent key={evaluation.id || index} value={index.toString()}>
+                    <EvaluationForm
+                      evaluation={evaluation}
+                      onClose={() => setActiveEvaluationIndex(-1)}
+                      onSave={(updatedEvaluation) => {
+                        console.log('EvaluationForm onSave - received data:', updatedEvaluation);
+                        updateEvaluation(index, updatedEvaluation);
+                      }}
+                    />
+                  </TabsContent>
+                ))}
               </Tabs>
             )}
           </div>
