@@ -1,26 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, Plus, Eye, Edit, Trash2, Folder, FileText } from "lucide-react";
+import { Search, Plus, Filter, Eye, Edit, Trash2, FileText, Download, Upload, Settings } from "lucide-react";
 import { MaterialForm } from "@/components/MaterialForm";
 import { MaterialDetails } from "@/components/MaterialDetails";
-import { EvaluationDetails } from "@/components/EvaluationDetails";
 import { ProjectForm } from "@/components/ProjectForm";
 import { ProjectDetails } from "@/components/ProjectDetails";
+import { ProjectUpload } from "@/components/ProjectUpload";
+import { EvaluationDetails } from "@/components/EvaluationDetails";
 import { DatabaseManagement } from "@/components/DatabaseManagement";
 import { localDB } from "@/lib/database";
-import { seedDatabase } from "@/lib/seedData";
-
-interface ProjectMaterial {
-  id: string;
-  name: string;
-  manufacturer: string;
-  quantity_m2?: number;
-  quantity_m3?: number;
-  units?: number;
-}
 
 interface Evaluation {
   id: string;
@@ -50,9 +44,9 @@ interface Project {
   id: number;
   name: string;
   description: string;
-  startDate: string;
-  endDate: string;
-  materials: ProjectMaterial[];
+  materials: Material[];
+  createdAt: string;
+  updatedAt: string;
 }
 
 export default function Index() {
@@ -60,23 +54,18 @@ export default function Index() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [manufacturers, setManufacturers] = useState<string[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
-  const [subcategories, setSubcategories] = useState<Record<string, string[]>>({});
-  const [evaluationTypes, setEvaluationTypes] = useState<string[]>([]);
-  
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('');
-  const [selectedSubcategory, setSelectedSubcategory] = useState('');
   const [selectedManufacturer, setSelectedManufacturer] = useState('');
-  const [selectedEvaluationType, setSelectedEvaluationType] = useState('');
-  
+  const [selectedCategory, setSelectedCategory] = useState('');
   const [showMaterialForm, setShowMaterialForm] = useState(false);
-  const [editingMaterial, setEditingMaterial] = useState<Material | null>(null);
-  const [selectedMaterial, setSelectedMaterial] = useState<Material | null>(null);
-  
   const [showProjectForm, setShowProjectForm] = useState(false);
+  const [showProjectUpload, setShowProjectUpload] = useState(false);
+  const [showDatabaseManagement, setShowDatabaseManagement] = useState(false);
+  const [editingMaterial, setEditingMaterial] = useState<Material | null>(null);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [selectedMaterial, setSelectedMaterial] = useState<Material | null>(null);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-  
-  const [activeTab, setActiveTab] = useState('search');
+  const [activeTab, setActiveTab] = useState('materials');
   const [isLoading, setIsLoading] = useState(true);
   const [selectedEvaluation, setSelectedEvaluation] = useState<Evaluation | null>(null);
 
@@ -97,9 +86,13 @@ export default function Index() {
   const initializeApp = async () => {
     try {
       setIsLoading(true);
-      await localDB.init();
-      await seedDatabase();
-      await loadAllData();
+      
+      // Initialize database with seed data
+      await localDB.initializeDatabase();
+      
+      // Load data
+      await loadData();
+      
     } catch (error) {
       console.error('Failed to initialize app:', error);
     } finally {
@@ -107,7 +100,7 @@ export default function Index() {
     }
   };
 
-  const loadAllData = async () => {
+  const loadData = async () => {
     try {
       const [dbMaterials, dbProjects, config] = await Promise.all([
         localDB.getMaterials(),
@@ -121,138 +114,188 @@ export default function Index() {
       setProjects(dbProjects);
       setManufacturers(config.manufacturers);
       setCategories(config.categories);
-      setSubcategories(config.subcategories);
-      setEvaluationTypes(config.evaluationTypes || []);
     } catch (error) {
       console.error('Failed to load data:', error);
     }
   };
 
-  const handleSaveMaterial = async (materialData: any) => {
-    try {
-      if (editingMaterial) {
-        await localDB.updateMaterial({ ...materialData, id: editingMaterial.id });
-      } else {
-        await localDB.addMaterial(materialData);
-      }
-      await loadAllData();
-      setShowMaterialForm(false);
-      setEditingMaterial(null);
-    } catch (error) {
-      console.error('Failed to save material:', error);
-    }
+  // Filter materials based on search criteria
+  const filteredMaterials = materials.filter(material => {
+    const matchesSearch = material.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         material.description.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesManufacturer = !selectedManufacturer || material.manufacturer === selectedManufacturer;
+    const matchesCategory = !selectedCategory || material.category === selectedCategory;
+    
+    return matchesSearch && matchesManufacturer && matchesCategory;
+  });
+
+  // Filter projects based on search criteria
+  const filteredProjects = projects.filter(project => {
+    return project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+           project.description.toLowerCase().includes(searchTerm.toLowerCase());
+  });
+
+  const handleAddMaterial = () => {
+    setEditingMaterial(null);
+    setShowMaterialForm(true);
+  };
+
+  const handleEditMaterial = (material: Material) => {
+    setEditingMaterial(material);
+    setShowMaterialForm(true);
   };
 
   const handleDeleteMaterial = async (materialId: number) => {
     if (confirm('Tem certeza que deseja excluir este material?')) {
       try {
         await localDB.deleteMaterial(materialId);
-        await loadAllData();
-        setSelectedMaterial(null);
+        setMaterials(materials.filter(m => m.id !== materialId));
       } catch (error) {
-        console.error('Failed to delete material:', error);
+        console.error('Error deleting material:', error);
       }
     }
   };
 
-  const handleSaveProject = async (projectData: any) => {
+  const handleSaveMaterial = async (materialData: any) => {
     try {
-      await localDB.addProject(projectData);
-      await loadAllData();
-      setShowProjectForm(false);
+      if (editingMaterial) {
+        // Update existing material
+        const updatedMaterial = await localDB.updateMaterial({
+          ...editingMaterial,
+          ...materialData
+        });
+        setMaterials(materials.map(m => 
+          m.id === editingMaterial.id ? convertFromDBMaterial(updatedMaterial) : m
+        ));
+      } else {
+        // Add new material
+        const materialId = await localDB.addMaterial(materialData);
+        const newMaterial = convertFromDBMaterial({ ...materialData, id: materialId });
+        setMaterials([...materials, newMaterial]);
+      }
+      
+      setShowMaterialForm(false);
+      setEditingMaterial(null);
     } catch (error) {
-      console.error('Failed to save project:', error);
+      console.error('Error saving material:', error);
     }
+  };
+
+  const handleAddProject = () => {
+    setEditingProject(null);
+    setShowProjectForm(true);
+  };
+
+  const handleEditProject = (project: Project) => {
+    setEditingProject(project);
+    setShowProjectForm(true);
   };
 
   const handleDeleteProject = async (projectId: number) => {
     if (confirm('Tem certeza que deseja excluir este projeto?')) {
       try {
         await localDB.deleteProject(projectId);
-        await loadAllData();
+        setProjects(projects.filter(p => p.id !== projectId));
       } catch (error) {
-        console.error('Failed to delete project:', error);
+        console.error('Error deleting project:', error);
       }
     }
   };
 
-  const updateConfig = async (newManufacturers: string[], newCategories: string[], newSubcategories: Record<string, string[]>) => {
+  const handleSaveProject = async (projectData: any) => {
     try {
-      const config = {
-        manufacturers: newManufacturers,
-        categories: newCategories,
-        subcategories: newSubcategories,
-        evaluationTypes: [
-          "EPD", "LCA", "Manufacturer Inventory", "REACH Optimization",
-          "Health Product Declaration", "C2C", "Declare", "Product Circularity",
-          "Global Green Tag Product Health Declaration", "FSC / PEFC", "ECOLABEL"
-        ]
-      };
-      await localDB.saveConfig(config);
-      setManufacturers(newManufacturers);
-      setCategories(newCategories);
-      setSubcategories(newSubcategories);
+      if (editingProject) {
+        // Update existing project
+        const updatedProject = {
+          ...editingProject,
+          ...projectData,
+          updatedAt: new Date().toISOString()
+        };
+        await localDB.updateProject(updatedProject);
+        setProjects(projects.map(p => 
+          p.id === editingProject.id ? updatedProject : p
+        ));
+      } else {
+        // Add new project
+        const projectId = await localDB.addProject({
+          ...projectData,
+          materials: [],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        });
+        const newProject = { ...projectData, id: projectId, materials: [] };
+        setProjects([...projects, newProject]);
+      }
+      
+      setShowProjectForm(false);
+      setEditingProject(null);
     } catch (error) {
-      console.error('Failed to update config:', error);
+      console.error('Error saving project:', error);
     }
   };
 
-  const openFileExplorer = (fileName: string) => {
-    try {
-      // For web applications, we'll try to download the file
-      const link = document.createElement('a');
-      link.href = `/evaluations/${fileName}`;
-      link.download = fileName;
-      link.target = '_blank';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } catch (error) {
-      console.error('Erro ao abrir ficheiro:', error);
-      alert('Erro ao abrir o ficheiro. Verifique se o ficheiro existe.');
-    }
+  const handleMaterialUpdate = (updatedMaterial: Material) => {
+    setMaterials(materials.map(m => 
+      m.id === updatedMaterial.id ? updatedMaterial : m
+    ));
   };
 
-  const filteredMaterials = materials.filter(material => {
-    const searchTermLower = searchTerm.toLowerCase();
-    const matchesSearch = material.name.toLowerCase().includes(searchTermLower) ||
-                           material.description.toLowerCase().includes(searchTermLower) ||
-                           material.manufacturer.toLowerCase().includes(searchTermLower);
+  const handleProjectUpdate = (updatedProject: Project) => {
+    setProjects(projects.map(p => 
+      p.id === updatedProject.id ? updatedProject : p
+    ));
+  };
 
-    const matchesCategory = !selectedCategory || material.category === selectedCategory;
-    const matchesSubcategory = !selectedSubcategory || material.subcategory === selectedSubcategory;
-    const matchesManufacturer = !selectedManufacturer || material.manufacturer === selectedManufacturer;
-    const matchesEvaluation = !selectedEvaluationType || 
-                              material.evaluations.some(evaluation => evaluation.type === selectedEvaluationType);
+  const handleEvaluationClick = (evaluation: Evaluation) => {
+    // Convert evaluation to match expected type
+    const convertedEvaluation = {
+      ...evaluation,
+      id: String(evaluation.id)
+    };
+    setSelectedEvaluation(convertedEvaluation);
+  };
 
-    return matchesSearch && matchesCategory && matchesSubcategory && matchesManufacturer && matchesEvaluation;
-  });
+  const handleOpenFile = (fileName: string) => {
+    console.log('Opening file:', fileName);
+    // TODO: Implement file opening logic
+  };
 
-  const sortedMaterials = [...filteredMaterials].sort((a, b) => a.name.localeCompare(b.name));
+  const getConformityBadge = (conformity: number) => {
+    if (conformity >= 80) return 'bg-green-600';
+    if (conformity >= 50) return 'bg-yellow-600';
+    return 'bg-red-600';
+  };
 
-  const availableSubcategories = selectedCategory ? subcategories[selectedCategory] || [] : [];
-
-  // Reset subcategory when category changes
-  useEffect(() => {
-    if (selectedCategory && !availableSubcategories.includes(selectedSubcategory)) {
-      setSelectedSubcategory('');
-    }
-  }, [selectedCategory, availableSubcategories, selectedSubcategory]);
+  const handleExportData = () => {
+    const data = {
+      materials,
+      projects,
+      exportDate: new Date().toISOString()
+    };
+    
+    const dataStr = JSON.stringify(data, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `materials_database_${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#282828] text-white flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-          <p>A inicializar base de dados...</p>
-        </div>
+      <div className="min-h-screen bg-[#282828] flex items-center justify-center">
+        <div className="text-white text-lg">Carregando...</div>
       </div>
     );
   }
 
   if (showMaterialForm) {
     return (
-      <MaterialForm 
+      <MaterialForm
         material={editingMaterial}
         onClose={() => {
           setShowMaterialForm(false);
@@ -263,43 +306,56 @@ export default function Index() {
     );
   }
 
-  if (selectedMaterial) {
-    return (
-      <MaterialDetails 
-        material={selectedMaterial} 
-        onClose={() => setSelectedMaterial(null)}
-        onEdit={() => {
-          setEditingMaterial(selectedMaterial);
-          setShowMaterialForm(true);
-        }}
-        onDelete={() => handleDeleteMaterial(selectedMaterial.id)}
-        onOpenFile={openFileExplorer}
-        onMaterialUpdate={(updatedMaterial) => {
-          setSelectedMaterial(updatedMaterial);
-          // Also update in the main materials list
-          setMaterials(prev => prev.map(mat => 
-            mat.id === updatedMaterial.id ? updatedMaterial : mat
-          ));
-        }}
-      />
-    );
-  }
-
-  if (selectedEvaluation) {
-    return (
-      <EvaluationDetails
-        evaluation={selectedEvaluation}
-        onClose={() => setSelectedEvaluation(null)}
-        onOpenFile={openFileExplorer}
-      />
-    );
-  }
-
   if (showProjectForm) {
     return (
       <ProjectForm
-        onClose={() => setShowProjectForm(false)}
+        project={editingProject}
+        onClose={() => {
+          setShowProjectForm(false);
+          setEditingProject(null);
+        }}
         onSave={handleSaveProject}
+      />
+    );
+  }
+
+  if (showProjectUpload) {
+    return (
+      <ProjectUpload
+        onClose={() => setShowProjectUpload(false)}
+        onProjectsImported={(importedProjects) => {
+          setProjects([...projects, ...importedProjects]);
+          setShowProjectUpload(false);
+        }}
+      />
+    );
+  }
+
+  if (showDatabaseManagement) {
+    return (
+      <DatabaseManagement
+        onClose={() => setShowDatabaseManagement(false)}
+        onDataUpdated={loadData}
+      />
+    );
+  }
+
+  if (selectedMaterial) {
+    return (
+      <MaterialDetails
+        material={selectedMaterial}
+        onClose={() => setSelectedMaterial(null)}
+        onEdit={() => {
+          setEditingMaterial(selectedMaterial);
+          setSelectedMaterial(null);
+          setShowMaterialForm(true);
+        }}
+        onDelete={() => {
+          handleDeleteMaterial(selectedMaterial.id);
+          setSelectedMaterial(null);
+        }}
+        onOpenFile={handleOpenFile}
+        onMaterialUpdate={handleMaterialUpdate}
       />
     );
   }
@@ -309,224 +365,284 @@ export default function Index() {
       <ProjectDetails
         project={selectedProject}
         onClose={() => setSelectedProject(null)}
-        materials={materials}
-        onDeleteMaterial={handleDeleteMaterial}
-        onEditMaterial={(material) => {
-          setEditingMaterial(material);
-          setShowMaterialForm(true);
+        onEdit={() => {
+          setEditingProject(selectedProject);
+          setSelectedProject(null);
+          setShowProjectForm(true);
         }}
+        onDelete={() => {
+          handleDeleteProject(selectedProject.id);
+          setSelectedProject(null);
+        }}
+        onProjectUpdate={handleProjectUpdate}
+      />
+    );
+  }
+
+  if (selectedEvaluation) {
+    return (
+      <EvaluationDetails
+        evaluation={selectedEvaluation}
+        onClose={() => setSelectedEvaluation(null)}
       />
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#282828] text-white">
-      <div className="container mx-auto p-6">
+    <div className="min-h-screen bg-[#282828] text-white p-6">
+      <div className="max-w-7xl mx-auto">
         <div className="flex justify-between items-center mb-8">
-          <h1 className="text-4xl font-bold">Sistema de Gestão de Materiais</h1>
+          <h1 className="text-3xl font-bold">Material Database</h1>
           <div className="flex gap-2">
             <Button 
-              onClick={() => setShowProjectForm(true)}
-              className="bg-[#358C48] hover:bg-[#4ea045]"
+              onClick={handleExportData}
+              variant="outline"
+              className="bg-[#35568C] hover:bg-[#89A9D2] text-white"
             >
-              <Plus className="mr-2 h-4 w-4" />
-              Novo Projeto
+              <Download className="mr-2 h-4 w-4" />
+              Exportar Dados
+            </Button>
+            <Button 
+              onClick={() => setShowProjectUpload(true)}
+              variant="outline"
+              className="bg-[#8C5535] hover:bg-[#D2A489] text-white"
+            >
+              <Upload className="mr-2 h-4 w-4" />
+              Importar Projetos
+            </Button>
+            <Button 
+              onClick={() => setShowDatabaseManagement(true)}
+              variant="outline"
+              className="bg-[#424242] hover:bg-[#525252] text-white"
+            >
+              <Settings className="mr-2 h-4 w-4" />
+              Gestão de Base de Dados
             </Button>
           </div>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 bg-[#323232] mb-6">
-            <TabsTrigger value="search" className="data-[state=active]:bg-[#424242] text-white">
-              <Search className="mr-2 h-4 w-4" />
-              Pesquisar Materiais
+          <TabsList className="grid w-full grid-cols-2 bg-[#323232] mb-6">
+            <TabsTrigger value="materials" className="data-[state=active]:bg-[#424242]">
+              Materiais ({materials.length})
             </TabsTrigger>
-            <TabsTrigger value="projects" className="data-[state=active]:bg-[#424242] text-white">
-              <Folder className="mr-2 h-4 w-4" />
-              Projetos
-            </TabsTrigger>
-            <TabsTrigger value="database" className="data-[state=active]:bg-[#424242] text-white">
-              Gestão de Base de Dados
+            <TabsTrigger value="projects" className="data-[state=active]:bg-[#424242]">
+              Projetos ({projects.length})
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="search">
-            <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-6">
-              <Input
-                type="text"
-                placeholder="Pesquisar materiais..."
-                className="bg-[#323232] border-[#424242] text-white"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-              <select
-                className="bg-[#323232] border-[#424242] text-white rounded p-2"
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-              >
-                <option value="">Todas as Categorias</option>
-                {categories.map(category => (
-                  <option key={category} value={category}>{category}</option>
-                ))}
-              </select>
-              <select
-                className="bg-[#323232] border-[#424242] text-white rounded p-2"
-                value={selectedSubcategory}
-                onChange={(e) => setSelectedSubcategory(e.target.value)}
-                disabled={!selectedCategory}
-              >
-                <option value="">Todas as Subcategorias</option>
-                {availableSubcategories.map(subcategory => (
-                  <option key={subcategory} value={subcategory}>{subcategory}</option>
-                ))}
-              </select>
-              <select
-                className="bg-[#323232] border-[#424242] text-white rounded p-2"
-                value={selectedManufacturer}
-                onChange={(e) => setSelectedManufacturer(e.target.value)}
-              >
-                <option value="">Todos os Fabricantes</option>
-                {manufacturers.map(manufacturer => (
-                  <option key={manufacturer} value={manufacturer}>{manufacturer}</option>
-                ))}
-              </select>
-              <select
-                className="bg-[#323232] border-[#424242] text-white rounded p-2"
-                value={selectedEvaluationType}
-                onChange={(e) => setSelectedEvaluationType(e.target.value)}
-              >
-                <option value="">Todas as Avaliações</option>
-                {evaluationTypes.map(type => (
-                  <option key={type} value={type}>{type}</option>
-                ))}
-              </select>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setSearchTerm('');
-                  setSelectedCategory('');
-                  setSelectedSubcategory('');
-                  setSelectedManufacturer('');
-                  setSelectedEvaluationType('');
-                }}
-                className="bg-[#8C3535] hover:bg-[#a04545] text-white"
-              >
-                Limpar Filtros
-              </Button>
+          <div className="flex flex-col md:flex-row gap-4 mb-6">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Input
+                  placeholder="Pesquisar..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 bg-[#323232] border-[#424242] text-white"
+                />
+              </div>
             </div>
+            
+            {activeTab === 'materials' && (
+              <>
+                <Select value={selectedManufacturer} onValueChange={setSelectedManufacturer}>
+                  <SelectTrigger className="w-48 bg-[#323232] border-[#424242] text-white">
+                    <SelectValue placeholder="Fabricante" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#323232] border-[#424242]">
+                    <SelectItem value="" className="text-white">Todos os Fabricantes</SelectItem>
+                    {manufacturers.map(mfg => (
+                      <SelectItem key={mfg} value={mfg} className="text-white">{mfg}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {sortedMaterials.map(material => (
-                <Card key={material.id} className="bg-[#323232] border-[#424242]">
+                <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                  <SelectTrigger className="w-48 bg-[#323232] border-[#424242] text-white">
+                    <SelectValue placeholder="Categoria" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#323232] border-[#424242]">
+                    <SelectItem value="" className="text-white">Todas as Categorias</SelectItem>
+                    {categories.map(cat => (
+                      <SelectItem key={cat} value={cat} className="text-white">{cat}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </>
+            )}
+
+            <Button 
+              onClick={activeTab === 'materials' ? handleAddMaterial : handleAddProject}
+              className="bg-[#358C48] hover:bg-[#4ea045]"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Adicionar {activeTab === 'materials' ? 'Material' : 'Projeto'}
+            </Button>
+          </div>
+
+          <TabsContent value="materials">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredMaterials.map((material) => (
+                <Card key={material.id} className="bg-[#323232] border-[#424242] hover:border-[#525252] transition-colors">
                   <CardHeader>
                     <CardTitle className="text-white text-lg">{material.name}</CardTitle>
-                    <p className="text-gray-300 text-sm">{material.manufacturer}</p>
-                    <p className="text-gray-400 text-xs">{material.category} - {material.subcategory}</p>
+                    <p className="text-gray-400 text-sm">ID: {material.id}</p>
                   </CardHeader>
                   <CardContent>
-                    <div className="mb-4">
-                      <h4 className="text-white font-semibold mb-2">Avaliações:</h4>
-                      {material.evaluations.length > 0 ? (
-                        <div className="space-y-2">
-                          {material.evaluations.map((evaluation, index) => (
-                            <div key={index} className="bg-[#424242] p-2 rounded text-sm cursor-pointer hover:bg-[#525252] transition-colors"
-                                 onClick={() => setSelectedEvaluation(evaluation)}>
-                              <div className="flex justify-between items-center">
-                                <span className="text-white font-medium">{evaluation.type}</span>
-                                <span className={`px-2 py-1 rounded text-xs ${
-                                  evaluation.conformity >= 80 ? 'bg-green-600 text-white' :
-                                  evaluation.conformity >= 50 ? 'bg-yellow-600 text-white' :
-                                  'bg-red-600 text-white'
-                                }`}>
-                                  {evaluation.conformity}%
-                                </span>
-                              </div>
-                              <div className="text-gray-300 text-xs mt-1">
-                                <p>Versão: {evaluation.version}</p>
-                                <p>Válido até: {evaluation.validTo}</p>
-                                {evaluation.fileName && (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="mt-1 bg-[#35568C] hover:bg-[#89A9D2] text-white text-xs"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      openFileExplorer(evaluation.fileName!);
-                                    }}
-                                  >
-                                    <FileText className="mr-1 h-3 w-3" />
-                                    Ver Ficheiro
-                                  </Button>
-                                )}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-gray-400 text-sm">Nenhuma avaliação</p>
-                      )}
+                    <div className="space-y-2 mb-4">
+                      <p className="text-gray-300 text-sm"><strong>Fabricante:</strong> {material.manufacturer}</p>
+                      <p className="text-gray-300 text-sm"><strong>Categoria:</strong> {material.category}</p>
+                      <p className="text-gray-300 text-sm"><strong>Subcategoria:</strong> {material.subcategory}</p>
+                      <p className="text-gray-300 text-sm">{material.description}</p>
                     </div>
-                    <Button 
-                      variant="outline" 
-                      className="w-full bg-[#35568C] hover:bg-[#89A9D2] text-white"
-                      onClick={() => setSelectedMaterial(material)}
-                    >
-                      <Eye className="mr-2 h-4 w-4" />
-                      Ver Detalhes
-                    </Button>
+                    
+                    <div className="mb-4">
+                      <p className="text-gray-400 text-sm mb-2">Avaliações ({material.evaluations.length})</p>
+                      <div className="flex flex-wrap gap-1">
+                        {material.evaluations.slice(0, 3).map((evaluation) => (
+                          <button
+                            key={evaluation.id}
+                            onClick={() => handleEvaluationClick(evaluation)}
+                            className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${getConformityBadge(evaluation.conformity)} text-white hover:opacity-80 transition-opacity`}
+                          >
+                            {evaluation.type}
+                            {evaluation.fileName && (
+                              <FileText className="ml-1 h-3 w-3" />
+                            )}
+                          </button>
+                        ))}
+                        {material.evaluations.length > 3 && (
+                          <Badge variant="secondary" className="text-xs">
+                            +{material.evaluations.length - 3} mais
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex justify-between">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="bg-[#35568C] hover:bg-[#89A9D2] text-white"
+                        onClick={() => setSelectedMaterial(material)}
+                      >
+                        <Eye className="mr-1 h-4 w-4" />
+                        Ver
+                      </Button>
+                      <div className="flex gap-1">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="bg-[#358C48] hover:bg-[#4ea045] text-white"
+                          onClick={() => handleEditMaterial(material)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="bg-[#8C3535] hover:bg-[#a04545] text-white"
+                          onClick={() => handleDeleteMaterial(material.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
               ))}
             </div>
+
+            {filteredMaterials.length === 0 && (
+              <div className="text-center py-12">
+                <p className="text-gray-400 text-lg mb-4">Nenhum material encontrado</p>
+                <Button onClick={handleAddMaterial} className="bg-[#358C48] hover:bg-[#4ea045]">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Adicionar Primeiro Material
+                </Button>
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="projects">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {projects.map(project => (
-                <Card key={project.id} className="bg-[#323232] border-[#424242]">
-                  <CardHeader>
-                    <CardTitle className="text-white">{project.name}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-gray-400">{project.description}</p>
-                    <Button
-                      variant="outline"
-                      className="w-full mt-4 bg-[#35568C] hover:bg-[#89A9D2]"
-                      onClick={() => setSelectedProject(project)}
-                    >
-                      <Eye className="mr-2 h-4 w-4" />
-                      Ver Detalhes
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="w-full mt-2 bg-[#8C3535] hover:bg-[#a04545]"
-                      onClick={() => handleDeleteProject(project.id)}
-                    >
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      Excluir Projeto
-                    </Button>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </TabsContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredProjects.map((project) => {
+                const totalMaterials = project.materials.length;
+                const totalEvaluations = project.materials.reduce((sum, material) => sum + material.evaluations.length, 0);
+                const avgConformity = totalEvaluations > 0 
+                  ? Math.round(project.materials.reduce((sum, material) => 
+                      sum + material.evaluations.reduce((evalSum, evaluation) => evalSum + evaluation.conformity, 0), 0) / totalEvaluations)
+                  : 0;
 
-          <TabsContent value="database">
-            <DatabaseManagement
-              materials={materials}
-              manufacturers={manufacturers}
-              categories={categories}
-              subcategories={subcategories}
-              onEditMaterial={(material) => {
-                setEditingMaterial(material);
-                setShowMaterialForm(true);
-              }}
-              onDeleteMaterial={handleDeleteMaterial}
-              onAddMaterial={() => setShowMaterialForm(true)}
-              onUpdateManufacturers={(newManufacturers) => updateConfig(newManufacturers, categories, subcategories)}
-              onUpdateCategories={(newCategories) => updateConfig(manufacturers, newCategories, subcategories)}
-              onUpdateSubcategories={(newSubcategories) => updateConfig(manufacturers, categories, newSubcategories)}
-            />
+                return (
+                  <Card key={project.id} className="bg-[#323232] border-[#424242] hover:border-[#525252] transition-colors">
+                    <CardHeader>
+                      <CardTitle className="text-white text-lg">{project.name}</CardTitle>
+                      <p className="text-gray-400 text-sm">ID: {project.id}</p>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-gray-300 text-sm mb-4">{project.description}</p>
+                      
+                      <div className="grid grid-cols-3 gap-2 mb-4 text-center">
+                        <div>
+                          <p className="text-lg font-bold text-white">{totalMaterials}</p>
+                          <p className="text-xs text-gray-400">Materiais</p>
+                        </div>
+                        <div>
+                          <p className="text-lg font-bold text-white">{totalEvaluations}</p>
+                          <p className="text-xs text-gray-400">Avaliações</p>
+                        </div>
+                        <div>
+                          <p className="text-lg font-bold text-white">{avgConformity}%</p>
+                          <p className="text-xs text-gray-400">Conformidade</p>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-between">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="bg-[#35568C] hover:bg-[#89A9D2] text-white"
+                          onClick={() => setSelectedProject(project)}
+                        >
+                          <Eye className="mr-1 h-4 w-4" />
+                          Ver
+                        </Button>
+                        <div className="flex gap-1">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="bg-[#358C48] hover:bg-[#4ea045] text-white"
+                            onClick={() => handleEditProject(project)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="bg-[#8C3535] hover:bg-[#a04545] text-white"
+                            onClick={() => handleDeleteProject(project.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+
+            {filteredProjects.length === 0 && (
+              <div className="text-center py-12">
+                <p className="text-gray-400 text-lg mb-4">Nenhum projeto encontrado</p>
+                <Button onClick={handleAddProject} className="bg-[#358C48] hover:bg-[#4ea045]">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Adicionar Primeiro Projeto
+                </Button>
+              </div>
+            )}
           </TabsContent>
         </Tabs>
       </div>

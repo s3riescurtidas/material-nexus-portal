@@ -1,18 +1,10 @@
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Eye, FileText } from "lucide-react";
-import { MaterialDetails } from "@/components/MaterialDetails";
-import { EvaluationDetails } from "@/components/EvaluationDetails";
-
-interface ProjectMaterial {
-  id: string;
-  name: string;
-  manufacturer: string;
-  quantity_m2?: number;
-  quantity_m3?: number;
-  units?: number;
-}
+import { ArrowLeft, Edit, Trash2, Plus, FileText, Download } from "lucide-react";
+import { MaterialForm } from "./MaterialForm";
+import { EvaluationDetails } from "./EvaluationDetails";
+import { localDB } from "@/lib/database";
 
 interface Evaluation {
   id: string;
@@ -42,262 +34,307 @@ interface Project {
   id: number;
   name: string;
   description: string;
-  startDate: string;
-  endDate: string;
-  materials: ProjectMaterial[];
+  materials: Material[];
+  createdAt: string;
+  updatedAt: string;
 }
 
 interface ProjectDetailsProps {
   project: Project;
   onClose: () => void;
-  materials: Material[];
-  onEditMaterial?: (material: Material) => void;
-  onDeleteMaterial?: (materialId: number) => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  onProjectUpdate: (updatedProject: Project) => void;
 }
 
-export function ProjectDetails({ project, onClose, materials, onEditMaterial, onDeleteMaterial }: ProjectDetailsProps) {
-  const [selectedMaterial, setSelectedMaterial] = useState<Material | null>(null);
+export function ProjectDetails({ 
+  project, 
+  onClose, 
+  onEdit, 
+  onDelete,
+  onProjectUpdate
+}: ProjectDetailsProps) {
+  const [currentProject, setCurrentProject] = useState<Project>(project);
+  const [showMaterialForm, setShowMaterialForm] = useState(false);
+  const [editingMaterial, setEditingMaterial] = useState<Material | null>(null);
   const [selectedEvaluation, setSelectedEvaluation] = useState<Evaluation | null>(null);
 
-  const normalizeText = (text: string) => {
-    return text
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/[^a-z0-9]/g, '')
-      .trim();
+  const handleAddMaterial = () => {
+    setEditingMaterial(null);
+    setShowMaterialForm(true);
   };
 
-  const findMaterialInDatabase = (projectMaterial: ProjectMaterial) => {
-    return materials.find(material => {
-      const normalizedProjectName = normalizeText(projectMaterial.name);
-      const normalizedProjectManufacturer = normalizeText(projectMaterial.manufacturer);
-      const normalizedMaterialName = normalizeText(material.name);
-      const normalizedMaterialManufacturer = normalizeText(material.manufacturer);
-      
-      return normalizedProjectName === normalizedMaterialName && 
-             normalizedProjectManufacturer === normalizedMaterialManufacturer;
-    });
+  const handleEditMaterial = (material: Material) => {
+    setEditingMaterial(material);
+    setShowMaterialForm(true);
   };
 
-  const getEvaluationColor = (evaluation: Evaluation, projectStart: string, projectEnd: string) => {
-    const evaluationStart = new Date(evaluation.issueDate);
-    const evaluationEnd = new Date(evaluation.validTo);
-    const projStart = new Date(projectStart);
-    const projEnd = new Date(projectEnd);
-
-    if (evaluationEnd >= projStart && evaluationStart <= projEnd) {
-      return "text-green-400"; // Valid during project
-    } else if (evaluationEnd < projStart) {
-      return "text-red-400"; // Expired before project
-    } else if (evaluationStart > projEnd) {
-      return "text-blue-400"; // Valid after project
+  const handleDeleteMaterial = async (materialId: number) => {
+    if (confirm('Tem certeza que deseja excluir este material?')) {
+      try {
+        const updatedMaterials = currentProject.materials.filter(m => m.id !== materialId);
+        const updatedProject = {
+          ...currentProject,
+          materials: updatedMaterials,
+          updatedAt: new Date().toISOString()
+        };
+        
+        await localDB.updateProject(updatedProject);
+        setCurrentProject(updatedProject);
+        onProjectUpdate(updatedProject);
+      } catch (error) {
+        console.error('Error deleting material:', error);
+      }
     }
-    return "text-purple-400";
   };
 
-  const getQuantityDisplay = (material: ProjectMaterial) => {
-    if (material.quantity_m2) return `${material.quantity_m2} m²`;
-    if (material.quantity_m3) return `${material.quantity_m3} m³`;
-    if (material.units) return `${material.units} unidades`;
-    return "N/A";
-  };
-
-  const openFileExplorer = (fileName: string) => {
+  const handleSaveMaterial = async (materialData: any) => {
     try {
-      // For web applications, we'll try to download the file
-      const link = document.createElement('a');
-      link.href = `/evaluations/${fileName}`;
-      link.download = fileName;
-      link.target = '_blank';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      let updatedMaterials;
+      
+      if (editingMaterial) {
+        // Update existing material
+        const materialIndex = currentProject.materials.findIndex(m => m.id === editingMaterial.id);
+        updatedMaterials = [...currentProject.materials];
+        updatedMaterials[materialIndex] = {
+          ...editingMaterial,
+          ...materialData,
+          updatedAt: new Date().toISOString()
+        };
+      } else {
+        // Add new material
+        const newMaterial = {
+          ...materialData,
+          id: Date.now(),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        updatedMaterials = [...currentProject.materials, newMaterial];
+      }
+      
+      const updatedProject = {
+        ...currentProject,
+        materials: updatedMaterials,
+        updatedAt: new Date().toISOString()
+      };
+      
+      await localDB.updateProject(updatedProject);
+      setCurrentProject(updatedProject);
+      onProjectUpdate(updatedProject);
+      setShowMaterialForm(false);
+      setEditingMaterial(null);
     } catch (error) {
-      console.error('Erro ao abrir ficheiro:', error);
-      alert('Erro ao abrir o ficheiro. Verifique se o ficheiro existe.');
+      console.error('Error saving material:', error);
     }
   };
 
-  const sortedProjectMaterials = [...project.materials].sort((a, b) => a.id.localeCompare(b.id));
+  const handleMaterialUpdate = (updatedMaterial: Material) => {
+    const materialIndex = currentProject.materials.findIndex(m => m.id === updatedMaterial.id);
+    if (materialIndex >= 0) {
+      const updatedMaterials = [...currentProject.materials];
+      updatedMaterials[materialIndex] = updatedMaterial;
+      const updatedProject = {
+        ...currentProject,
+        materials: updatedMaterials,
+        updatedAt: new Date().toISOString()
+      };
+      setCurrentProject(updatedProject);
+      onProjectUpdate(updatedProject);
+    }
+  };
+
+  const handleEvaluationClick = (evaluation: Evaluation) => {
+    // Convert evaluation to match expected type
+    const convertedEvaluation = {
+      ...evaluation,
+      id: String(evaluation.id)
+    };
+    setSelectedEvaluation(convertedEvaluation);
+  };
+
+  const handleExportProject = () => {
+    const dataStr = JSON.stringify(currentProject, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${currentProject.name.replace(/\s+/g, '_')}_project.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  if (showMaterialForm) {
+    return (
+      <MaterialForm
+        material={editingMaterial}
+        onClose={() => {
+          setShowMaterialForm(false);
+          setEditingMaterial(null);
+        }}
+        onSave={handleSaveMaterial}
+      />
+    );
+  }
 
   if (selectedEvaluation) {
     return (
       <EvaluationDetails
         evaluation={selectedEvaluation}
         onClose={() => setSelectedEvaluation(null)}
-        onOpenFile={openFileExplorer}
       />
     );
   }
 
-  if (selectedMaterial) {
-    return (
-      <MaterialDetails 
-        material={selectedMaterial} 
-        onClose={() => setSelectedMaterial(null)}
-        onEdit={() => {
-          if (onEditMaterial) {
-            onEditMaterial(selectedMaterial);
-          }
-          setSelectedMaterial(null);
-        }}
-        onDelete={() => {
-          if (onDeleteMaterial) {
-            onDeleteMaterial(selectedMaterial.id);
-          }
-          setSelectedMaterial(null);
-        }}
-        onOpenFile={openFileExplorer}
-        onMaterialUpdate={(updatedMaterial) => {
-          setSelectedMaterial(updatedMaterial);
-        }}
-      />
-    );
-  }
+  const getConformityBadge = (conformity: number) => {
+    if (conformity >= 80) return 'bg-green-600';
+    if (conformity >= 50) return 'bg-yellow-600';
+    return 'bg-red-600';
+  };
+
+  const totalMaterials = currentProject.materials.length;
+  const totalEvaluations = currentProject.materials.reduce((sum, material) => sum + material.evaluations.length, 0);
+  const avgConformity = totalEvaluations > 0 
+    ? Math.round(currentProject.materials.reduce((sum, material) => 
+        sum + material.evaluations.reduce((evalSum, evaluation) => evalSum + evaluation.conformity, 0), 0) / totalEvaluations)
+    : 0;
 
   return (
     <div className="min-h-screen bg-[#282828] text-white p-6">
       <div className="max-w-6xl mx-auto">
-        {/* Header */}
         <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-4">
+          <Button 
+            onClick={onClose}
+            variant="outline"
+            className="bg-[#323232] border-[#424242] text-white hover:bg-[#424242]"
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Voltar
+          </Button>
+          <div className="flex gap-2">
             <Button 
-              variant="outline" 
-              onClick={onClose}
-              className="bg-[#323232] border-[#424242] hover:bg-[#424242]"
+              onClick={handleExportProject}
+              variant="outline"
+              className="bg-[#358C48] hover:bg-[#4ea045] text-white"
             >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Voltar
+              <Download className="mr-2 h-4 w-4" />
+              Exportar Projeto
             </Button>
-            <h1 className="text-3xl font-bold">{project.name}</h1>
+            <Button 
+              onClick={handleAddMaterial}
+              className="bg-[#358C48] hover:bg-[#4ea045]"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Adicionar Material
+            </Button>
+            <Button 
+              onClick={onEdit}
+              variant="outline"
+              className="bg-[#35568C] hover:bg-[#89A9D2] text-white"
+            >
+              <Edit className="mr-2 h-4 w-4" />
+              Editar
+            </Button>
+            <Button 
+              onClick={onDelete}
+              variant="outline"
+              className="bg-[#8C3535] hover:bg-[#a04545] text-white"
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Excluir
+            </Button>
           </div>
         </div>
 
-        {/* Project Information */}
         <Card className="bg-[#323232] border-[#424242] mb-6">
           <CardHeader>
-            <CardTitle className="text-white">Informações do Projeto</CardTitle>
+            <CardTitle className="text-white text-2xl">{currentProject.name}</CardTitle>
+            <p className="text-gray-300">ID: {currentProject.id}</p>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm font-medium text-gray-300">Nome</label>
-                <p className="text-white">{project.name}</p>
+          <CardContent>
+            <p className="text-gray-300 mb-4">{currentProject.description}</p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="text-center">
+                <p className="text-2xl font-bold text-white">{totalMaterials}</p>
+                <p className="text-gray-400">Materiais</p>
               </div>
-              <div>
-                <label className="text-sm font-medium text-gray-300">Data de Início</label>
-                <p className="text-white">{new Date(project.startDate).toLocaleDateString()}</p>
+              <div className="text-center">
+                <p className="text-2xl font-bold text-white">{totalEvaluations}</p>
+                <p className="text-gray-400">Avaliações</p>
               </div>
-              <div>
-                <label className="text-sm font-medium text-gray-300">Descrição</label>
-                <p className="text-white">{project.description}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-300">Data de Fim</label>
-                <p className="text-white">{new Date(project.endDate).toLocaleDateString()}</p>
+              <div className="text-center">
+                <p className="text-2xl font-bold text-white">{avgConformity}%</p>
+                <p className="text-gray-400">Conformidade Média</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Project Materials */}
         <Card className="bg-[#323232] border-[#424242]">
           <CardHeader>
-            <CardTitle className="text-white">Materiais do Projeto ({project.materials.length})</CardTitle>
+            <CardTitle className="text-white">Materiais do Projeto</CardTitle>
           </CardHeader>
           <CardContent>
-            {project.materials.length === 0 ? (
-              <p className="text-gray-400">Nenhum material no projeto</p>
+            {currentProject.materials.length === 0 ? (
+              <p className="text-gray-400">Nenhum material encontrado.</p>
             ) : (
               <div className="space-y-4">
-                {sortedProjectMaterials.map((projectMaterial) => {
-                  const dbMaterial = findMaterialInDatabase(projectMaterial);
-                  const isInDatabase = !!dbMaterial;
-                  
-                  return (
-                    <div 
-                      key={projectMaterial.id}
-                      className={`rounded-lg p-4 border ${
-                        isInDatabase 
-                          ? 'bg-[#424242] border-[#525252]' 
-                          : 'bg-[#8C3535] border-[#a04545]'
-                      }`}
-                    >
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <h3 className="text-lg font-bold text-white">{projectMaterial.name}</h3>
-                            {!isInDatabase && (
-                              <span className="text-xs bg-red-600 text-white px-2 py-1 rounded">
-                                Não encontrado na base de dados
-                              </span>
-                            )}
-                          </div>
-                          
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                            <div>
-                              <span className="text-gray-300">ID:</span>
-                              <span className="text-white ml-2">{projectMaterial.id}</span>
-                            </div>
-                            <div>
-                              <span className="text-gray-300">Fabricante:</span>
-                              <span className="text-white ml-2">{projectMaterial.manufacturer}</span>
-                            </div>
-                            <div>
-                              <span className="text-gray-300">Quantidade:</span>
-                              <span className="text-white ml-2">{getQuantityDisplay(projectMaterial)}</span>
-                            </div>
-                            {isInDatabase && dbMaterial && (
-                              <div>
-                                <span className="text-gray-300">Categoria:</span>
-                                <span className="text-white ml-2">{dbMaterial.category}</span>
-                              </div>
-                            )}
-                          </div>
-
-                          {isInDatabase && dbMaterial && dbMaterial.description && (
-                            <div className="mt-2">
-                              <span className="text-gray-300 text-sm">Descrição:</span>
-                              <span className="text-white ml-2 text-sm">{dbMaterial.description}</span>
-                            </div>
-                          )}
-
-                          {/* Evaluations */}
-                          {isInDatabase && dbMaterial && dbMaterial.evaluations.length > 0 && (
-                            <div className="mt-3">
-                              <span className="text-gray-300 text-sm">Avaliações:</span>
-                              <div className="flex flex-wrap gap-2 mt-1">
-                                {dbMaterial.evaluations.map((evaluation) => (
-                                  <button
-                                    key={evaluation.id}
-                                    onClick={() => setSelectedEvaluation(evaluation)}
-                                    className={`text-xs px-2 py-1 rounded bg-[#525252] hover:bg-[#626262] transition-colors ${getEvaluationColor(evaluation, project.startDate, project.endDate)} cursor-pointer`}
-                                  >
-                                    {evaluation.type} v{evaluation.version}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          )}
+                {currentProject.materials.map((material) => (
+                  <Card key={material.id} className="bg-[#424242] border-[#525252]">
+                    <CardContent className="p-4">
+                      <div className="flex justify-between items-start mb-3">
+                        <div>
+                          <h3 className="text-white font-semibold text-lg">{material.name}</h3>
+                          <p className="text-gray-300">{material.manufacturer}</p>
+                          <p className="text-gray-400 text-sm">{material.category} - {material.subcategory}</p>
                         </div>
-                        
-                        {isInDatabase && dbMaterial && (
-                          <div className="flex gap-2">
-                            <Button 
-                              size="sm" 
-                              variant="outline" 
-                              className="bg-[#35568C] hover:bg-[#89A9D2]"
-                              onClick={() => setSelectedMaterial(dbMaterial)}
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="bg-[#358C48] hover:bg-[#4ea045] text-white"
+                            onClick={() => handleEditMaterial(material)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="bg-[#8C3535] hover:bg-[#a04545] text-white"
+                            onClick={() => handleDeleteMaterial(material.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                      
+                      <p className="text-gray-300 text-sm mb-3">{material.description}</p>
+                      
+                      <div>
+                        <p className="text-gray-400 text-sm mb-2">Avaliações ({material.evaluations.length})</p>
+                        {material.evaluations.length === 0 ? (
+                          <p className="text-gray-500 text-sm">Nenhuma avaliação</p>
+                        ) : (
+                          <div className="flex flex-wrap gap-2">
+                            {material.evaluations.map((evaluation) => (
+                              <button
+                                key={evaluation.id}
+                                onClick={() => handleEvaluationClick(evaluation)}
+                                className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getConformityBadge(evaluation.conformity)} text-white hover:opacity-80 transition-opacity`}
+                              >
+                                {evaluation.type} - {evaluation.conformity}%
+                                {evaluation.fileName && (
+                                  <FileText className="ml-1 h-3 w-3" />
+                                )}
+                              </button>
+                            ))}
                           </div>
                         )}
                       </div>
-                    </div>
-                  );
-                })}
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
             )}
           </CardContent>
