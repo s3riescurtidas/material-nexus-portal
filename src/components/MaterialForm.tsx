@@ -35,8 +35,7 @@ export function MaterialForm({ material, onClose, onSave }) {
 
   useEffect(() => {
     if (material) {
-      console.log('Loading material for editing:', material);
-      // Ensure evaluations is always an array
+      console.log('MaterialForm - Loading material for editing:', material);
       const evaluations = Array.isArray(material.evaluations) ? material.evaluations : [];
       setFormData({
         name: material.name || '',
@@ -46,7 +45,7 @@ export function MaterialForm({ material, onClose, onSave }) {
         description: material.description || '',
         evaluations: evaluations
       });
-      console.log('Loaded evaluations:', evaluations);
+      console.log('MaterialForm - Loaded evaluations:', evaluations);
     } else {
       setFormData({
         name: '',
@@ -68,11 +67,31 @@ export function MaterialForm({ material, onClose, onSave }) {
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('Submitting material with evaluations:', formData);
-    console.log('Evaluations count:', formData.evaluations.length);
-    onSave(formData);
+    console.log('MaterialForm - Submitting material with evaluations:', formData);
+    console.log('MaterialForm - Evaluations count:', formData.evaluations.length);
+    
+    try {
+      if (material) {
+        // Editing existing material - update in database
+        const updatedMaterial = {
+          ...material,
+          ...formData
+        };
+        console.log('MaterialForm - Updating existing material:', updatedMaterial);
+        await localDB.updateMaterial(updatedMaterial);
+        onSave(updatedMaterial);
+      } else {
+        // Creating new material - add to database
+        console.log('MaterialForm - Creating new material:', formData);
+        const materialId = await localDB.addMaterial(formData);
+        const newMaterial = { ...formData, id: materialId };
+        onSave(newMaterial);
+      }
+    } catch (error) {
+      console.error('MaterialForm - Error saving material:', error);
+    }
   };
 
   const handleInputChange = (field, value) => {
@@ -94,35 +113,33 @@ export function MaterialForm({ material, onClose, onSave }) {
       ...getInitialEvaluationFields(type)
     };
     
-    console.log('Adding new evaluation:', newEvaluation);
+    console.log('MaterialForm - Adding new evaluation:', newEvaluation);
     
     setFormData(prev => {
       const updatedEvaluations = [...prev.evaluations, newEvaluation];
-      console.log('Updated evaluations after add:', updatedEvaluations);
+      console.log('MaterialForm - Updated evaluations after add:', updatedEvaluations);
       return {
         ...prev,
         evaluations: updatedEvaluations
       };
     });
     
-    // Set active tab to the new evaluation
     setActiveEvaluationIndex(formData.evaluations.length);
   };
 
   const removeEvaluation = (index) => {
-    console.log('Removing evaluation at index:', index);
-    console.log('Current evaluations before remove:', formData.evaluations);
+    console.log('MaterialForm - Removing evaluation at index:', index);
+    console.log('MaterialForm - Current evaluations before remove:', formData.evaluations);
     
     setFormData(prev => {
       const updatedEvaluations = prev.evaluations.filter((_, i) => i !== index);
-      console.log('Updated evaluations after remove:', updatedEvaluations);
+      console.log('MaterialForm - Updated evaluations after remove:', updatedEvaluations);
       return {
         ...prev,
         evaluations: updatedEvaluations
       };
     });
     
-    // Reset active tab if we deleted the active one
     if (activeEvaluationIndex === index) {
       setActiveEvaluationIndex(-1);
     } else if (activeEvaluationIndex > index) {
@@ -131,20 +148,19 @@ export function MaterialForm({ material, onClose, onSave }) {
   };
 
   const updateEvaluation = (index, updatedData) => {
-    console.log('Updating evaluation at index:', index);
-    console.log('Update data received:', updatedData);
-    console.log('Current evaluations before update:', formData.evaluations);
+    console.log('MaterialForm - Updating evaluation at index:', index);
+    console.log('MaterialForm - Update data received:', updatedData);
+    console.log('MaterialForm - Current evaluations before update:', formData.evaluations);
     
     setFormData(prev => {
       const updatedEvaluations = [...prev.evaluations];
-      // Merge the updated data with existing evaluation
       updatedEvaluations[index] = {
         ...updatedEvaluations[index],
         ...updatedData
       };
       
-      console.log('Updated evaluation at index', index, ':', updatedEvaluations[index]);
-      console.log('All evaluations after update:', updatedEvaluations);
+      console.log('MaterialForm - Updated evaluation at index', index, ':', updatedEvaluations[index]);
+      console.log('MaterialForm - All evaluations after update:', updatedEvaluations);
       
       return {
         ...prev,
@@ -321,9 +337,9 @@ export function MaterialForm({ material, onClose, onSave }) {
 
   const availableSubcategories = formData.category ? config.subcategories[formData.category] || [] : [];
 
-  console.log('Current form state:', formData);
-  console.log('Current evaluations:', formData.evaluations);
-  console.log('Active evaluation index:', activeEvaluationIndex);
+  console.log('MaterialForm - Current form state:', formData);
+  console.log('MaterialForm - Current evaluations:', formData.evaluations);
+  console.log('MaterialForm - Active evaluation index:', activeEvaluationIndex);
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
@@ -457,7 +473,7 @@ export function MaterialForm({ material, onClose, onSave }) {
                       evaluation={evaluation}
                       onClose={() => setActiveEvaluationIndex(-1)}
                       onSave={(updatedEvaluation) => {
-                        console.log('EvaluationForm onSave called with:', updatedEvaluation);
+                        console.log('MaterialForm - EvaluationForm onSave called with:', updatedEvaluation);
                         updateEvaluation(index, updatedEvaluation);
                       }}
                     />
