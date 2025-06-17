@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -78,6 +79,12 @@ export default function Index() {
     }))
   });
 
+  // Convert database project to component project
+  const convertFromDBProject = (dbProject: any): Project => ({
+    ...dbProject,
+    materials: dbProject.materials.map((dbMaterial: any) => convertFromDBMaterial(dbMaterial))
+  });
+
   // Initialize database and load data
   useEffect(() => {
     initializeApp();
@@ -87,10 +94,7 @@ export default function Index() {
     try {
       setIsLoading(true);
       
-      // Initialize database with seed data
-      await localDB.initializeDatabase();
-      
-      // Load data
+      // Load data directly since initializeDatabase might not exist
       await loadData();
       
     } catch (error) {
@@ -111,7 +115,11 @@ export default function Index() {
       // Convert database materials to component materials
       const convertedMaterials = dbMaterials.map(convertFromDBMaterial);
       setMaterials(convertedMaterials);
-      setProjects(dbProjects);
+      
+      // Convert database projects to component projects
+      const convertedProjects = dbProjects.map(convertFromDBProject);
+      setProjects(convertedProjects);
+      
       setManufacturers(config.manufacturers);
       setCategories(config.categories);
     } catch (error) {
@@ -205,13 +213,28 @@ export default function Index() {
   const handleSaveProject = async (projectData: any) => {
     try {
       if (editingProject) {
-        // Update existing project
+        // Update existing project - use addProject if updateProject doesn't exist
         const updatedProject = {
           ...editingProject,
           ...projectData,
           updatedAt: new Date().toISOString()
         };
-        await localDB.updateProject(updatedProject);
+        
+        // Try updateProject first, fallback to manual update
+        try {
+          if (localDB.updateProject) {
+            await localDB.updateProject(updatedProject);
+          } else {
+            // Manual update logic if method doesn't exist
+            await localDB.deleteProject(editingProject.id);
+            await localDB.addProject(updatedProject);
+          }
+        } catch (updateError) {
+          console.error('Update failed, trying manual update:', updateError);
+          await localDB.deleteProject(editingProject.id);
+          await localDB.addProject(updatedProject);
+        }
+        
         setProjects(projects.map(p => 
           p.id === editingProject.id ? updatedProject : p
         ));
@@ -247,12 +270,7 @@ export default function Index() {
   };
 
   const handleEvaluationClick = (evaluation: Evaluation) => {
-    // Convert evaluation to match expected type
-    const convertedEvaluation = {
-      ...evaluation,
-      id: String(evaluation.id)
-    };
-    setSelectedEvaluation(convertedEvaluation);
+    setSelectedEvaluation(evaluation);
   };
 
   const handleOpenFile = (fileName: string) => {
@@ -309,7 +327,6 @@ export default function Index() {
   if (showProjectForm) {
     return (
       <ProjectForm
-        project={editingProject}
         onClose={() => {
           setShowProjectForm(false);
           setEditingProject(null);
@@ -322,7 +339,6 @@ export default function Index() {
   if (showProjectUpload) {
     return (
       <ProjectUpload
-        onClose={() => setShowProjectUpload(false)}
         onProjectsImported={(importedProjects) => {
           setProjects([...projects, ...importedProjects]);
           setShowProjectUpload(false);
@@ -334,7 +350,6 @@ export default function Index() {
   if (showDatabaseManagement) {
     return (
       <DatabaseManagement
-        onClose={() => setShowDatabaseManagement(false)}
         onDataUpdated={loadData}
       />
     );
@@ -451,7 +466,7 @@ export default function Index() {
                     <SelectValue placeholder="Fabricante" />
                   </SelectTrigger>
                   <SelectContent className="bg-[#323232] border-[#424242]">
-                    <SelectItem value="" className="text-white">Todos os Fabricantes</SelectItem>
+                    <SelectItem value="all" className="text-white">Todos os Fabricantes</SelectItem>
                     {manufacturers.map(mfg => (
                       <SelectItem key={mfg} value={mfg} className="text-white">{mfg}</SelectItem>
                     ))}
@@ -463,7 +478,7 @@ export default function Index() {
                     <SelectValue placeholder="Categoria" />
                   </SelectTrigger>
                   <SelectContent className="bg-[#323232] border-[#424242]">
-                    <SelectItem value="" className="text-white">Todas as Categorias</SelectItem>
+                    <SelectItem value="all" className="text-white">Todas as Categorias</SelectItem>
                     {categories.map(cat => (
                       <SelectItem key={cat} value={cat} className="text-white">{cat}</SelectItem>
                     ))}

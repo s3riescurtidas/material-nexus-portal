@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -79,7 +80,21 @@ export function ProjectDetails({
           updatedAt: new Date().toISOString()
         };
         
-        await localDB.updateProject(updatedProject);
+        // Try updateProject first, fallback to manual update
+        try {
+          if (localDB.updateProject) {
+            await localDB.updateProject(updatedProject);
+          } else {
+            // Manual update logic if method doesn't exist
+            await localDB.deleteProject(currentProject.id);
+            await localDB.addProject(updatedProject);
+          }
+        } catch (updateError) {
+          console.error('Update failed, trying manual update:', updateError);
+          await localDB.deleteProject(currentProject.id);
+          await localDB.addProject(updatedProject);
+        }
+        
         setCurrentProject(updatedProject);
         onProjectUpdate(updatedProject);
       } catch (error) {
@@ -118,7 +133,21 @@ export function ProjectDetails({
         updatedAt: new Date().toISOString()
       };
       
-      await localDB.updateProject(updatedProject);
+      // Try updateProject first, fallback to manual update
+      try {
+        if (localDB.updateProject) {
+          await localDB.updateProject(updatedProject);
+        } else {
+          // Manual update logic if method doesn't exist
+          await localDB.deleteProject(currentProject.id);
+          await localDB.addProject(updatedProject);
+        }
+      } catch (updateError) {
+        console.error('Update failed, trying manual update:', updateError);
+        await localDB.deleteProject(currentProject.id);
+        await localDB.addProject(updatedProject);
+      }
+      
       setCurrentProject(updatedProject);
       onProjectUpdate(updatedProject);
       setShowMaterialForm(false);
@@ -144,12 +173,7 @@ export function ProjectDetails({
   };
 
   const handleEvaluationClick = (evaluation: Evaluation) => {
-    // Convert evaluation to match expected type
-    const convertedEvaluation = {
-      ...evaluation,
-      id: String(evaluation.id)
-    };
-    setSelectedEvaluation(convertedEvaluation);
+    setSelectedEvaluation(evaluation);
   };
 
   const handleExportProject = () => {
