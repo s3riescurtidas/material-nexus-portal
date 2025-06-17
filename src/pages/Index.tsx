@@ -23,7 +23,7 @@ interface ProjectMaterial {
 }
 
 interface Evaluation {
-  id: number;
+  id: string;
   type: string;
   version: string;
   issueDate: string;
@@ -42,6 +42,8 @@ interface Material {
   subcategory: string;
   description: string;
   evaluations: Evaluation[];
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 interface Project {
@@ -261,6 +263,13 @@ export default function Index() {
         }}
         onDelete={() => handleDeleteMaterial(selectedMaterial.id)}
         onOpenFile={openFileExplorer}
+        onMaterialUpdate={(updatedMaterial) => {
+          setSelectedMaterial(updatedMaterial);
+          // Also update in the main materials list
+          setMaterials(prev => prev.map(mat => 
+            mat.id === updatedMaterial.id ? updatedMaterial : mat
+          ));
+        }}
       />
     );
   }

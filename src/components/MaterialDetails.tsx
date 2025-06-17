@@ -26,6 +26,8 @@ interface Material {
   subcategory: string;
   description: string;
   evaluations: Evaluation[];
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 interface MaterialDetailsProps {
@@ -76,7 +78,8 @@ export function MaterialDetails({
       
       const updatedMaterial = {
         ...currentMaterial,
-        evaluations: updatedEvaluations
+        evaluations: updatedEvaluations,
+        updatedAt: new Date().toISOString()
       };
       
       console.log('Updating material in database:', updatedMaterial);
@@ -103,7 +106,8 @@ export function MaterialDetails({
         const updatedEvaluations = currentMaterial.evaluations.filter((_, i) => i !== index);
         const updatedMaterial = {
           ...currentMaterial,
-          evaluations: updatedEvaluations
+          evaluations: updatedEvaluations,
+          updatedAt: new Date().toISOString()
         };
         
         console.log('Updating material after deletion:', updatedMaterial);

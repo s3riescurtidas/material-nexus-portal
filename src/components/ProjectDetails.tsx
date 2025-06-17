@@ -15,7 +15,7 @@ interface ProjectMaterial {
 }
 
 interface Evaluation {
-  id: number;
+  id: string;
   type: string;
   version: string;
   issueDate: string;
@@ -34,6 +34,8 @@ interface Material {
   subcategory: string;
   description: string;
   evaluations: Evaluation[];
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 interface Project {
@@ -147,6 +149,9 @@ export function ProjectDetails({ project, onClose, materials, onEditMaterial, on
           setSelectedMaterial(null);
         }}
         onOpenFile={openFileExplorer}
+        onMaterialUpdate={(updatedMaterial) => {
+          setSelectedMaterial(updatedMaterial);
+        }}
       />
     );
   }
