@@ -186,19 +186,7 @@ export function ProjectDetails({
   };
 
   const handleEvaluationClick = (evaluation: Evaluation) => {
-    // Ensure the evaluation has the correct type structure with string id
-    const formattedEvaluation: Evaluation = {
-      id: String(evaluation.id),
-      type: evaluation.type,
-      version: evaluation.version,
-      issueDate: evaluation.issueDate,
-      validTo: evaluation.validTo,
-      conformity: evaluation.conformity,
-      geographicArea: evaluation.geographicArea,
-      fileName: evaluation.fileName,
-      ...evaluation
-    };
-    setSelectedEvaluation(formattedEvaluation);
+    setSelectedEvaluation(evaluation);
   };
 
   const handleExportProject = () => {
