@@ -49,11 +49,23 @@ export function ProjectUpload({ onMaterialsUploaded, existingMaterials = [] }: P
     const normalizedExcelName = normalizeText(excelMaterial.name);
     const normalizedExcelManufacturer = normalizeText(excelMaterial.manufacturer);
 
-    console.log('Searching for material:', {
-      excel: { name: normalizedExcelName, manufacturer: normalizedExcelManufacturer },
-      original: { name: excelMaterial.name, manufacturer: excelMaterial.manufacturer },
+    console.log('🔍 Searching for material:', {
+      excel: { 
+        name: excelMaterial.name, 
+        manufacturer: excelMaterial.manufacturer,
+        normalizedName: normalizedExcelName,
+        normalizedManufacturer: normalizedExcelManufacturer
+      },
       databaseCount: databaseMaterials.length
     });
+
+    // Lista os primeiros materiais da base de dados para debug
+    console.log('📁 First 3 database materials:', databaseMaterials.slice(0, 3).map(m => ({
+      name: m.name,
+      manufacturer: m.manufacturer,
+      normalizedName: normalizeText(m.name),
+      normalizedManufacturer: normalizeText(m.manufacturer)
+    })));
 
     const match = databaseMaterials.find(dbMaterial => {
       const normalizedDbName = normalizeText(dbMaterial.name);
@@ -62,15 +74,26 @@ export function ProjectUpload({ onMaterialsUploaded, existingMaterials = [] }: P
       const nameMatch = normalizedDbName === normalizedExcelName;
       const manufacturerMatch = normalizedDbManufacturer === normalizedExcelManufacturer;
       
+      console.log(`🔍 Comparing: "${normalizedExcelName}" vs "${normalizedDbName}" (${nameMatch}) & "${normalizedExcelManufacturer}" vs "${normalizedDbManufacturer}" (${manufacturerMatch})`);
+      
       if (nameMatch && manufacturerMatch) {
-        console.log('Material found in database:', dbMaterial);
+        console.log('✅ MATCH FOUND:', dbMaterial);
         return true;
       }
       return false;
     });
 
     if (!match) {
-      console.log('Material not found in database for:', excelMaterial.name, excelMaterial.manufacturer);
+      console.log('❌ NO MATCH for:', excelMaterial.name, 'by', excelMaterial.manufacturer);
+      
+      // Procura materiais com nomes similares para debug
+      const similarNames = databaseMaterials.filter(m => 
+        normalizeText(m.name).includes(normalizedExcelName.split(' ')[0]) ||
+        normalizedExcelName.includes(normalizeText(m.name).split(' ')[0])
+      );
+      if (similarNames.length > 0) {
+        console.log('🔍 Similar names found:', similarNames.map(m => ({ name: m.name, manufacturer: m.manufacturer })));
+      }
     }
 
     return match;
@@ -94,7 +117,8 @@ export function ProjectUpload({ onMaterialsUploaded, existingMaterials = [] }: P
     setProcessingResults(null);
 
     try {
-      console.log('Processing Excel file with', existingMaterials.length, 'existing materials');
+      console.log('📊 Processing Excel file with', existingMaterials.length, 'existing materials');
+      console.log('📋 Database materials sample:', existingMaterials.slice(0, 3));
       
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data);
@@ -141,6 +165,8 @@ export function ProjectUpload({ onMaterialsUploaded, existingMaterials = [] }: P
             return;
           }
 
+          console.log(`\n🔍 Processing row ${rowNumber}: "${name}" by "${manufacturer}"`);
+
           // Try to find matching material in database
           const matchingMaterial = findMatchingMaterial({ name, manufacturer }, existingMaterials);
           
@@ -156,9 +182,9 @@ export function ProjectUpload({ onMaterialsUploaded, existingMaterials = [] }: P
 
           if (matchingMaterial) {
             matchedCount++;
-            console.log(`Material match found: ${name} - ${manufacturer}`);
+            console.log(`✅ Material matched: ${name} - ${manufacturer}`);
           } else {
-            console.log(`Material not found in database: ${name} - ${manufacturer}`);
+            console.log(`❌ Material NOT found: ${name} - ${manufacturer}`);
           }
 
           processedMaterials.push(projectMaterial);
@@ -174,14 +200,19 @@ export function ProjectUpload({ onMaterialsUploaded, existingMaterials = [] }: P
         errors: errors
       };
 
-      console.log('Processing results:', results);
-      console.log('Processed materials:', processedMaterials);
+      console.log('📊 Final processing results:', results);
+      console.log('📋 Processed materials summary:', processedMaterials.map(m => ({
+        name: m.name,
+        manufacturer: m.manufacturer,
+        hasMatch: !!m.databaseMaterial
+      })));
 
       setUploadedMaterials(processedMaterials);
       setProcessingResults(results);
       onMaterialsUploaded(processedMaterials);
       
     } catch (err) {
+      console.error('❌ Error processing Excel file:', err);
       setError("Erro ao processar o arquivo Excel. Verifique se o formato está correto.");
       setProcessingResults({
         total: 0,

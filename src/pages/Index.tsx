@@ -16,6 +16,7 @@ import { EvaluationDetails } from "@/components/EvaluationDetails";
 import { DatabaseManagement } from "@/components/DatabaseManagement";
 import { DataImport } from "@/components/DataImport";
 import { localDB } from "@/lib/database";
+import { cleanInvalidCategories } from "@/lib/utils";
 
 interface Evaluation {
   id: number;
@@ -116,6 +117,9 @@ export default function Index() {
       // Initialize the database first
       await localDB.init();
       
+      // Clean invalid categories
+      await cleanInvalidCategories(localDB);
+      
       // Then load the data
       await loadData();
       
@@ -133,6 +137,9 @@ export default function Index() {
         localDB.getProjects(),
         localDB.getConfig()
       ]);
+
+      console.log('📊 Loaded materials from database:', dbMaterials.length);
+      console.log('📋 Sample materials:', dbMaterials.slice(0, 3).map(m => ({ name: m.name, manufacturer: m.manufacturer })));
 
       // Convert database materials to component materials
       const convertedMaterials = dbMaterials.map(convertFromDBMaterial);
@@ -387,7 +394,12 @@ export default function Index() {
     return (
       <ProjectUpload
         onMaterialsUploaded={(importedMaterials: ProjectMaterial[]) => {
-          console.log('Materials uploaded:', importedMaterials);
+          console.log('📋 Materials uploaded from Excel:', importedMaterials.length);
+          console.log('📊 Sample uploaded materials:', importedMaterials.slice(0, 3).map(m => ({ 
+            name: m.name, 
+            manufacturer: m.manufacturer, 
+            hasMatch: !!m.databaseMaterial 
+          })));
           setShowProjectUpload(false);
         }}
         existingMaterials={materials}
