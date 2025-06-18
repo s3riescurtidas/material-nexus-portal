@@ -186,7 +186,7 @@ export function ProjectDetails({
   };
 
   const handleEvaluationClick = (evaluation: Evaluation) => {
-    // Ensure the evaluation has the correct type structure
+    // Ensure the evaluation has the correct type structure with string id
     const formattedEvaluation: Evaluation = {
       id: String(evaluation.id),
       type: evaluation.type,

@@ -74,10 +74,10 @@ export default function Index() {
   // Convert database material to component material
   const convertFromDBMaterial = (dbMaterial: any): Material => ({
     ...dbMaterial,
-    evaluations: dbMaterial.evaluations.map((dbEval: any) => ({
+    evaluations: dbMaterial.evaluations?.map((dbEval: any) => ({
       ...dbEval,
       id: String(dbEval.id)
-    }))
+    })) || []
   });
 
   // Convert database project to component project
@@ -95,7 +95,10 @@ export default function Index() {
     try {
       setIsLoading(true);
       
-      // Load data directly since initializeDatabase might not exist
+      // Initialize the database first
+      await localDB.init();
+      
+      // Then load the data
       await loadData();
       
     } catch (error) {
@@ -286,7 +289,7 @@ export default function Index() {
   };
 
   const handleEvaluationClick = (evaluation: Evaluation) => {
-    // Ensure the evaluation has the correct type structure
+    // Ensure the evaluation has the correct type structure with string id
     const formattedEvaluation: Evaluation = {
       id: String(evaluation.id),
       type: evaluation.type,
@@ -382,7 +385,6 @@ export default function Index() {
         manufacturers={manufacturers}
         categories={categories}
         subcategories={{}}
-        evaluationTypes={[]}
         onMaterialsUpdate={setMaterials}
         onConfigUpdate={(config) => {
           setManufacturers(config.manufacturers);
