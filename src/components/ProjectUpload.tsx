@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,66 +33,136 @@ export function ProjectUpload({ onMaterialsUploaded, existingMaterials = [] }: P
     errors: string[];
   } | null>(null);
 
+  // Função de normalização aprimorada
   const normalizeText = (text: string) => {
     if (!text) return '';
-    return text
+    
+    // Converter para lowercase e remover acentos
+    let normalized = text
       .toLowerCase()
       .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/[^a-z0-9\s]/g, '')
-      .replace(/\s+/g, ' ')
-      .trim();
+      .replace(/[\u0300-\u036f]/g, "");
+    
+    // Remover caracteres especiais e manter apenas letras, números e espaços
+    normalized = normalized.replace(/[^a-z0-9\s]/g, '');
+    
+    // Normalizar espaços múltiplos para espaços únicos
+    normalized = normalized.replace(/\s+/g, ' ');
+    
+    // Remover espaços no início e fim
+    normalized = normalized.trim();
+    
+    return normalized;
   };
 
+  // Função de correspondência melhorada
   const findMatchingMaterial = (excelMaterial: any, databaseMaterials: any[]) => {
     const normalizedExcelName = normalizeText(excelMaterial.name);
     const normalizedExcelManufacturer = normalizeText(excelMaterial.manufacturer);
 
-    console.log('🔍 Searching for material:', {
-      excel: { 
+    console.log('🔍 DETAILED SEARCH for material:', {
+      original: { 
         name: excelMaterial.name, 
-        manufacturer: excelMaterial.manufacturer,
-        normalizedName: normalizedExcelName,
-        normalizedManufacturer: normalizedExcelManufacturer
+        manufacturer: excelMaterial.manufacturer 
       },
-      databaseCount: databaseMaterials.length
+      normalized: {
+        name: normalizedExcelName,
+        manufacturer: normalizedExcelManufacturer
+      }
     });
 
-    // Lista os primeiros materiais da base de dados para debug
-    console.log('📁 First 3 database materials:', databaseMaterials.slice(0, 3).map(m => ({
-      name: m.name,
-      manufacturer: m.manufacturer,
-      normalizedName: normalizeText(m.name),
-      normalizedManufacturer: normalizeText(m.manufacturer)
-    })));
+    console.log('📁 Database has', databaseMaterials.length, 'materials');
 
-    const match = databaseMaterials.find(dbMaterial => {
+    // Log todos os materiais da base de dados para debug
+    databaseMaterials.forEach((dbMat, index) => {
+      const normalizedDbName = normalizeText(dbMat.name);
+      const normalizedDbManufacturer = normalizeText(dbMat.manufacturer);
+      
+      console.log(`DB Material ${index + 1}:`, {
+        id: dbMat.id,
+        original: { name: dbMat.name, manufacturer: dbMat.manufacturer },
+        normalized: { name: normalizedDbName, manufacturer: normalizedDbManufacturer }
+      });
+    });
+
+    // Procura exata por nome e fabricante
+    let match = databaseMaterials.find(dbMaterial => {
       const normalizedDbName = normalizeText(dbMaterial.name);
       const normalizedDbManufacturer = normalizeText(dbMaterial.manufacturer);
       
       const nameMatch = normalizedDbName === normalizedExcelName;
       const manufacturerMatch = normalizedDbManufacturer === normalizedExcelManufacturer;
       
-      console.log(`🔍 Comparing: "${normalizedExcelName}" vs "${normalizedDbName}" (${nameMatch}) & "${normalizedExcelManufacturer}" vs "${normalizedDbManufacturer}" (${manufacturerMatch})`);
+      console.log(`🔍 Comparing EXACT:
+        Excel: "${normalizedExcelName}" vs DB: "${normalizedDbName}" → ${nameMatch}
+        Excel: "${normalizedExcelManufacturer}" vs DB: "${normalizedDbManufacturer}" → ${manufacturerMatch}`);
       
-      if (nameMatch && manufacturerMatch) {
-        console.log('✅ MATCH FOUND:', dbMaterial);
-        return true;
-      }
-      return false;
+      return nameMatch && manufacturerMatch;
     });
 
-    if (!match) {
-      console.log('❌ NO MATCH for:', excelMaterial.name, 'by', excelMaterial.manufacturer);
+    if (match) {
+      console.log('✅ EXACT MATCH FOUND:', match);
+      return match;
+    }
+
+    // Se não encontrou correspondência exata, tenta correspondência parcial por nome
+    console.log('🔍 Trying PARTIAL MATCH by name...');
+    match = databaseMaterials.find(dbMaterial => {
+      const normalizedDbName = normalizeText(dbMaterial.name);
+      const normalizedDbManufacturer = normalizeText(dbMaterial.manufacturer);
       
-      // Procura materiais com nomes similares para debug
-      const similarNames = databaseMaterials.filter(m => 
-        normalizeText(m.name).includes(normalizedExcelName.split(' ')[0]) ||
-        normalizedExcelName.includes(normalizeText(m.name).split(' ')[0])
-      );
-      if (similarNames.length > 0) {
-        console.log('🔍 Similar names found:', similarNames.map(m => ({ name: m.name, manufacturer: m.manufacturer })));
-      }
+      // Verifica se o nome normalizado contém as palavras principais
+      const excelWords = normalizedExcelName.split(' ').filter(word => word.length > 2);
+      const dbWords = normalizedDbName.split(' ').filter(word => word.length > 2);
+      
+      const nameWordsMatch = excelWords.every(word => normalizedDbName.includes(word)) || 
+                            dbWords.every(word => normalizedExcelName.includes(word));
+      
+      const manufacturerMatch = normalizedDbManufacturer === normalizedExcelManufacturer;
+      
+      console.log(`🔍 Comparing PARTIAL:
+        Excel words: [${excelWords.join(', ')}] vs DB: "${normalizedDbName}" → ${nameWordsMatch}
+        Excel: "${normalizedExcelManufacturer}" vs DB: "${normalizedDbManufacturer}" → ${manufacturerMatch}`);
+      
+      return nameWordsMatch && manufacturerMatch;
+    });
+
+    if (match) {
+      console.log('✅ PARTIAL MATCH FOUND:', match);
+      return match;
+    }
+
+    // Se ainda não encontrou, tenta correspondência mais flexível
+    console.log('🔍 Trying FLEXIBLE MATCH...');
+    match = databaseMaterials.find(dbMaterial => {
+      const normalizedDbName = normalizeText(dbMaterial.name);
+      const normalizedDbManufacturer = normalizeText(dbMaterial.manufacturer);
+      
+      // Correspondência mais flexível: verifica se pelo menos 70% das palavras coincidem
+      const excelWords = normalizedExcelName.split(' ').filter(word => word.length > 2);
+      const dbWords = normalizedDbName.split(' ').filter(word => word.length > 2);
+      
+      let matchingWords = 0;
+      excelWords.forEach(excelWord => {
+        if (dbWords.some(dbWord => dbWord.includes(excelWord) || excelWord.includes(dbWord))) {
+          matchingWords++;
+        }
+      });
+      
+      const nameFlexibleMatch = excelWords.length > 0 && (matchingWords / excelWords.length) >= 0.7;
+      const manufacturerMatch = normalizedDbManufacturer === normalizedExcelManufacturer;
+      
+      console.log(`🔍 Comparing FLEXIBLE:
+        Matching words: ${matchingWords}/${excelWords.length} (${(matchingWords/excelWords.length*100).toFixed(1)}%) → ${nameFlexibleMatch}
+        Manufacturer match: ${manufacturerMatch}`);
+      
+      return nameFlexibleMatch && manufacturerMatch;
+    });
+
+    if (match) {
+      console.log('✅ FLEXIBLE MATCH FOUND:', match);
+    } else {
+      console.log('❌ NO MATCH FOUND for:', excelMaterial.name, 'by', excelMaterial.manufacturer);
     }
 
     return match;
@@ -118,7 +187,11 @@ export function ProjectUpload({ onMaterialsUploaded, existingMaterials = [] }: P
 
     try {
       console.log('📊 Processing Excel file with', existingMaterials.length, 'existing materials');
-      console.log('📋 Database materials sample:', existingMaterials.slice(0, 3));
+      console.log('📋 Database materials:', existingMaterials.map(m => ({ 
+        id: m.id, 
+        name: m.name, 
+        manufacturer: m.manufacturer 
+      })));
       
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data);
@@ -182,7 +255,7 @@ export function ProjectUpload({ onMaterialsUploaded, existingMaterials = [] }: P
 
           if (matchingMaterial) {
             matchedCount++;
-            console.log(`✅ Material matched: ${name} - ${manufacturer}`);
+            console.log(`✅ Material matched: ${name} - ${manufacturer} → DB ID: ${matchingMaterial.id}`);
           } else {
             console.log(`❌ Material NOT found: ${name} - ${manufacturer}`);
           }
@@ -204,7 +277,8 @@ export function ProjectUpload({ onMaterialsUploaded, existingMaterials = [] }: P
       console.log('📋 Processed materials summary:', processedMaterials.map(m => ({
         name: m.name,
         manufacturer: m.manufacturer,
-        hasMatch: !!m.databaseMaterial
+        hasMatch: !!m.databaseMaterial,
+        matchId: m.databaseMaterial?.id
       })));
 
       setUploadedMaterials(processedMaterials);
@@ -355,7 +429,7 @@ export function ProjectUpload({ onMaterialsUploaded, existingMaterials = [] }: P
                         <h4 className="text-white font-medium">{material.name}</h4>
                         {material.databaseMaterial ? (
                           <span className="text-xs bg-green-600 text-white px-2 py-1 rounded">
-                            Encontrado na base
+                            Encontrado na base (ID: {material.databaseMaterial.id})
                           </span>
                         ) : (
                           <span className="text-xs bg-red-600 text-white px-2 py-1 rounded">
@@ -381,8 +455,8 @@ export function ProjectUpload({ onMaterialsUploaded, existingMaterials = [] }: P
                         </div>
                       ) : (
                         <div className="mt-2 text-red-300 text-sm">
-                          <span className="font-medium">Material do Excel:</span>
-                          <div className="ml-2">
+                          <span className="font-medium">Material do Excel (não encontrado na base):</span>
+                          <div className="ml-2 mt-1">
                             <p>Nome: {material.name}</p>
                             <p>Fabricante: {material.manufacturer}</p>
                             <p>Quantidades: {getQuantityDisplay(material)}</p>
