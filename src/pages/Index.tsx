@@ -14,6 +14,7 @@ import { ProjectDetails } from "@/components/ProjectDetails";
 import { ProjectUpload } from "@/components/ProjectUpload";
 import { EvaluationDetails } from "@/components/EvaluationDetails";
 import { DatabaseManagement } from "@/components/DatabaseManagement";
+import { DataImport } from "@/components/DataImport";
 import { localDB } from "@/lib/database";
 
 interface Evaluation {
@@ -73,6 +74,7 @@ export default function Index() {
   const [showProjectForm, setShowProjectForm] = useState(false);
   const [showProjectUpload, setShowProjectUpload] = useState(false);
   const [showDatabaseManagement, setShowDatabaseManagement] = useState(false);
+  const [showDataImport, setShowDataImport] = useState(false);
   const [editingMaterial, setEditingMaterial] = useState<Material | null>(null);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [selectedMaterial, setSelectedMaterial] = useState<Material | null>(null);
@@ -313,10 +315,15 @@ export default function Index() {
     return 'bg-red-600';
   };
 
-  const handleExportData = () => {
+  const exportData = () => {
     const data = {
       materials,
-      projects,
+      config: {
+        manufacturers,
+        categories,
+        subcategories,
+        evaluationTypes: config.evaluationTypes
+      },
       exportDate: new Date().toISOString()
     };
     
@@ -325,11 +332,16 @@ export default function Index() {
     const url = URL.createObjectURL(dataBlob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `materials_database_${new Date().toISOString().split('T')[0]}.json`;
+    link.download = `materials_data_${new Date().toISOString().split('T')[0]}.json`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+  };
+
+  const handleDataImportComplete = () => {
+    loadMaterials();
+    loadConfig();
   };
 
   if (isLoading) {
@@ -377,6 +389,15 @@ export default function Index() {
           setShowProjectUpload(false);
         }}
         existingMaterials={materials}
+      />
+    );
+  }
+
+  if (showDataImport) {
+    return (
+      <DataImport
+        onClose={() => setShowDataImport(false)}
+        onImportComplete={handleDataImportComplete}
       />
     );
   }
@@ -449,33 +470,33 @@ export default function Index() {
 
   return (
     <div className="min-h-screen bg-[#282828] text-white p-6">
-      <div className="max-w-7xl mx-auto">
+      <div className="container mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold">Material Database</h1>
+          <h1 className="text-3xl font-bold">Material & Project Management</h1>
           <div className="flex gap-2">
             <Button 
-              onClick={handleExportData}
+              onClick={() => setShowDataImport(true)}
               variant="outline"
-              className="bg-[#35568C] hover:bg-[#89A9D2] text-white"
+              className="bg-[#358C48] hover:bg-[#4ea045] text-white"
+            >
+              <Upload className="mr-2 h-4 w-4" />
+              Importar Dados
+            </Button>
+            <Button 
+              onClick={exportData}
+              variant="outline"
+              className="bg-[#358C48] hover:bg-[#4ea045] text-white"
             >
               <Download className="mr-2 h-4 w-4" />
               Exportar Dados
             </Button>
             <Button 
-              onClick={() => setShowProjectUpload(true)}
-              variant="outline"
-              className="bg-[#8C5535] hover:bg-[#D2A489] text-white"
-            >
-              <Upload className="mr-2 h-4 w-4" />
-              Importar Projetos
-            </Button>
-            <Button 
               onClick={() => setShowDatabaseManagement(true)}
               variant="outline"
-              className="bg-[#424242] hover:bg-[#525252] text-white"
+              className="bg-[#35568C] hover:bg-[#89A9D2] text-white"
             >
-              <Settings className="mr-2 h-4 w-4" />
-              Gestão de Base de Dados
+              <Database className="mr-2 h-4 w-4" />
+              Gerir Base de Dados
             </Button>
           </div>
         </div>

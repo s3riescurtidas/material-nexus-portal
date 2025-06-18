@@ -36,6 +36,7 @@ export function MaterialForm({ material, onClose, onSave }) {
   useEffect(() => {
     if (material) {
       console.log('MaterialForm - Loading material for editing:', material);
+      // Ensure evaluations is always an array
       const evaluations = Array.isArray(material.evaluations) ? material.evaluations : [];
       setFormData({
         name: material.name || '',
@@ -81,7 +82,9 @@ export function MaterialForm({ material, onClose, onSave }) {
     
     try {
       if (material) {
-        // Editing existing material - create updated material object
+        // Editing existing material - ensure evaluations is always an array
+        const safeEvaluations = Array.isArray(formData.evaluations) ? formData.evaluations : [];
+        
         const updatedMaterial = {
           id: material.id,
           name: formData.name,
@@ -89,7 +92,7 @@ export function MaterialForm({ material, onClose, onSave }) {
           category: formData.category,
           subcategory: formData.subcategory,
           description: formData.description,
-          evaluations: formData.evaluations,
+          evaluations: safeEvaluations,
           createdAt: material.createdAt || new Date().toISOString(),
           updatedAt: new Date().toISOString()
         };
@@ -99,6 +102,7 @@ export function MaterialForm({ material, onClose, onSave }) {
         console.log('MaterialForm - Material updated successfully in database');
         onSave(updatedMaterial);
         console.log('MaterialForm - onSave called with updated material');
+        onClose(); // Close the form after successful save
       } else {
         // Creating new material
         console.log('MaterialForm - Creating new material:', formData);
@@ -110,6 +114,7 @@ export function MaterialForm({ material, onClose, onSave }) {
           updatedAt: new Date().toISOString()
         };
         onSave(newMaterial);
+        onClose(); // Close the form after successful save
       }
     } catch (error) {
       console.error('MaterialForm - Error saving material:', error);
@@ -139,7 +144,8 @@ export function MaterialForm({ material, onClose, onSave }) {
     console.log('MaterialForm - Adding new evaluation:', newEvaluation);
     
     setFormData(prev => {
-      const updatedEvaluations = [...prev.evaluations, newEvaluation];
+      const safeEvaluations = Array.isArray(prev.evaluations) ? prev.evaluations : [];
+      const updatedEvaluations = [...safeEvaluations, newEvaluation];
       console.log('MaterialForm - Updated evaluations after add:', updatedEvaluations);
       return {
         ...prev,
@@ -147,7 +153,8 @@ export function MaterialForm({ material, onClose, onSave }) {
       };
     });
     
-    setActiveEvaluationIndex(formData.evaluations.length);
+    const currentEvaluationsLength = Array.isArray(formData.evaluations) ? formData.evaluations.length : 0;
+    setActiveEvaluationIndex(currentEvaluationsLength);
   };
 
   const removeEvaluation = (index) => {
@@ -155,7 +162,8 @@ export function MaterialForm({ material, onClose, onSave }) {
     console.log('MaterialForm - Current evaluations before remove:', formData.evaluations);
     
     setFormData(prev => {
-      const updatedEvaluations = prev.evaluations.filter((_, i) => i !== index);
+      const safeEvaluations = Array.isArray(prev.evaluations) ? prev.evaluations : [];
+      const updatedEvaluations = safeEvaluations.filter((_, i) => i !== index);
       console.log('MaterialForm - Updated evaluations after remove:', updatedEvaluations);
       return {
         ...prev,
@@ -176,7 +184,8 @@ export function MaterialForm({ material, onClose, onSave }) {
     console.log('MaterialForm - Current evaluations before update:', formData.evaluations);
     
     setFormData(prev => {
-      const updatedEvaluations = [...prev.evaluations];
+      const safeEvaluations = Array.isArray(prev.evaluations) ? prev.evaluations : [];
+      const updatedEvaluations = [...safeEvaluations];
       updatedEvaluations[index] = {
         ...updatedEvaluations[index],
         ...updatedData
@@ -341,7 +350,8 @@ export function MaterialForm({ material, onClose, onSave }) {
 
   const getEvaluationDisplayName = (evaluation, index) => {
     const version = evaluation.version ? ` v${evaluation.version}` : '';
-    const sameTypeCount = formData.evaluations.filter((ev, i) => i <= index && ev.type === evaluation.type).length;
+    const safeEvaluations = Array.isArray(formData.evaluations) ? formData.evaluations : [];
+    const sameTypeCount = safeEvaluations.filter((ev, i) => i <= index && ev.type === evaluation.type).length;
     
     if (sameTypeCount > 1 || version) {
       return `${evaluation.type}${version || ` #${sameTypeCount}`}`;
@@ -360,9 +370,10 @@ export function MaterialForm({ material, onClose, onSave }) {
   };
 
   const availableSubcategories = formData.category ? config.subcategories[formData.category] || [] : [];
+  const safeEvaluations = Array.isArray(formData.evaluations) ? formData.evaluations : [];
 
   console.log('MaterialForm - Current form state:', formData);
-  console.log('MaterialForm - Current evaluations:', formData.evaluations);
+  console.log('MaterialForm - Current evaluations:', safeEvaluations);
   console.log('MaterialForm - Active evaluation index:', activeEvaluationIndex);
   console.log('MaterialForm - Available subcategories for category', formData.category, ':', availableSubcategories);
 
@@ -395,7 +406,7 @@ export function MaterialForm({ material, onClose, onSave }) {
               <Label htmlFor="manufacturer">Manufacturer</Label>
               <Select value={formData.manufacturer} onValueChange={(value) => handleInputChange('manufacturer', value)}>
                 <SelectTrigger className="bg-[#323232] border-[#424242] text-white">
-                  <SelectValue placeholder="Select manufacturer" />
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-[#323232] border-[#424242] z-50">
                   {config.manufacturers.map(mfg => (
@@ -409,7 +420,7 @@ export function MaterialForm({ material, onClose, onSave }) {
               <Label htmlFor="category">Category</Label>
               <Select value={formData.category} onValueChange={handleCategoryChange}>
                 <SelectTrigger className="bg-[#323232] border-[#424242] text-white">
-                  <SelectValue placeholder="Select category" />
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-[#323232] border-[#424242] z-50">
                   {config.categories.map(cat => (
@@ -423,7 +434,7 @@ export function MaterialForm({ material, onClose, onSave }) {
               <Label htmlFor="subcategory" className="text-white">Subcategoria</Label>
               <Select value={formData.subcategory} onValueChange={(value) => handleInputChange('subcategory', value)}>
                 <SelectTrigger className="bg-[#323232] border-[#424242] text-white">
-                  <SelectValue placeholder="Selecionar subcategoria" />
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-[#323232] border-[#424242] z-50">
                   {availableSubcategories.map(sub => (
@@ -460,10 +471,10 @@ export function MaterialForm({ material, onClose, onSave }) {
               </Select>
             </div>
 
-            {formData.evaluations.length > 0 && (
+            {safeEvaluations.length > 0 && (
               <Tabs value={activeEvaluationIndex.toString()} onValueChange={(value) => setActiveEvaluationIndex(parseInt(value))}>
                 <TabsList className="bg-[#323232] mb-4 flex-wrap">
-                  {formData.evaluations.map((evaluation, index) => (
+                  {safeEvaluations.map((evaluation, index) => (
                     <TabsTrigger 
                       key={evaluation.id || index} 
                       value={index.toString()}
@@ -486,7 +497,7 @@ export function MaterialForm({ material, onClose, onSave }) {
                   ))}
                 </TabsList>
 
-                {formData.evaluations.map((evaluation, index) => (
+                {safeEvaluations.map((evaluation, index) => (
                   <TabsContent key={evaluation.id || index} value={index.toString()}>
                     <EvaluationForm
                       evaluation={evaluation}
