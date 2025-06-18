@@ -83,7 +83,7 @@ export default function Index() {
   // Convert database project to component project
   const convertFromDBProject = (dbProject: any): Project => ({
     ...dbProject,
-    materials: dbProject.materials.map((dbMaterial: any) => convertFromDBMaterial(dbMaterial))
+    materials: dbProject.materials?.map((dbMaterial: any) => convertFromDBMaterial(dbMaterial)) || []
   });
 
   // Initialize database and load data
@@ -223,17 +223,19 @@ export default function Index() {
         
         // Convert to DB format with required fields
         const dbProject = {
-          ...updatedProject,
+          id: updatedProject.id,
+          name: updatedProject.name,
+          description: updatedProject.description,
           startDate: updatedProject.startDate || new Date().toISOString(),
           endDate: updatedProject.endDate || new Date().toISOString(),
-          materials: updatedProject.materials.map((m: Material) => ({
+          materials: updatedProject.materials?.map((m: Material) => ({
             id: String(m.id),
             name: m.name,
             manufacturer: m.manufacturer,
             quantity_m2: 0,
             quantity_m3: 0,
             units: 0
-          }))
+          })) || []
         };
         
         await localDB.updateProject(dbProject);
@@ -244,14 +246,21 @@ export default function Index() {
       } else {
         // Add new project
         const newProjectData = {
-          ...projectData,
+          name: projectData.name,
+          description: projectData.description,
           startDate: projectData.startDate || new Date().toISOString(),
           endDate: projectData.endDate || new Date().toISOString(),
           materials: []
         };
         
         const projectId = await localDB.addProject(newProjectData);
-        const newProject = { ...projectData, id: projectId, materials: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+        const newProject = { 
+          ...projectData, 
+          id: projectId, 
+          materials: [], 
+          createdAt: new Date().toISOString(), 
+          updatedAt: new Date().toISOString() 
+        };
         setProjects([...projects, newProject]);
       }
       
@@ -344,7 +353,6 @@ export default function Index() {
   if (showProjectUpload) {
     return (
       <ProjectUpload
-        onClose={() => setShowProjectUpload(false)}
         onProjectsImported={(importedProjects) => {
           setProjects([...projects, ...importedProjects]);
           setShowProjectUpload(false);
@@ -356,7 +364,6 @@ export default function Index() {
   if (showDatabaseManagement) {
     return (
       <DatabaseManagement
-        onClose={() => setShowDatabaseManagement(false)}
         onDataUpdated={loadData}
       />
     );

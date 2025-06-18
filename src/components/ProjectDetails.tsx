@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -83,7 +84,9 @@ export function ProjectDetails({
         
         // Convert to DB format with required fields
         const dbProject = {
-          ...updatedProject,
+          id: updatedProject.id,
+          name: updatedProject.name,
+          description: updatedProject.description,
           startDate: updatedProject.startDate || new Date().toISOString(),
           endDate: updatedProject.endDate || new Date().toISOString(),
           materials: updatedProject.materials.map(m => ({
@@ -138,7 +141,9 @@ export function ProjectDetails({
       
       // Convert to DB format with required fields
       const dbProject = {
-        ...updatedProject,
+        id: updatedProject.id,
+        name: updatedProject.name,
+        description: updatedProject.description,
         startDate: updatedProject.startDate || new Date().toISOString(),
         endDate: updatedProject.endDate || new Date().toISOString(),
         materials: updatedProject.materials.map(m => ({
