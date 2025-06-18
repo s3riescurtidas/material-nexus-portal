@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,7 +7,7 @@ import { EvaluationForm } from "./EvaluationForm";
 import { localDB } from "@/lib/database";
 
 interface Evaluation {
-  id: string;
+  id: number;
   type: string;
   version: string;
   issueDate: string;
@@ -54,13 +55,13 @@ export function MaterialDetails({
   // Convert component evaluation to database evaluation
   const convertToDBEvaluation = (evaluation: Evaluation) => ({
     ...evaluation,
-    id: parseInt(evaluation.id) || Date.now()
+    id: Number(evaluation.id) || Date.now()
   });
 
   // Convert database evaluation to component evaluation
   const convertFromDBEvaluation = (dbEvaluation: any) => ({
     ...dbEvaluation,
-    id: String(dbEvaluation.id)
+    id: Number(dbEvaluation.id)
   });
 
   const handleSaveEvaluation = async (evaluationData: any) => {
@@ -81,7 +82,7 @@ export function MaterialDetails({
         // Adding new evaluation
         console.log('Adding new evaluation');
         const newEvaluation = {
-          id: `eval_${Date.now()}_${Math.random()}`,
+          id: Date.now(),
           ...evaluationData
         };
         updatedEvaluations = [...currentMaterial.evaluations, newEvaluation];
