@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -38,6 +37,8 @@ interface Project {
   materials: Material[];
   createdAt: string;
   updatedAt: string;
+  startDate?: string;
+  endDate?: string;
 }
 
 interface ProjectDetailsProps {
@@ -80,20 +81,22 @@ export function ProjectDetails({
           updatedAt: new Date().toISOString()
         };
         
-        // Try updateProject first, fallback to manual update
-        try {
-          if (localDB.updateProject) {
-            await localDB.updateProject(updatedProject);
-          } else {
-            // Manual update logic if method doesn't exist
-            await localDB.deleteProject(currentProject.id);
-            await localDB.addProject(updatedProject);
-          }
-        } catch (updateError) {
-          console.error('Update failed, trying manual update:', updateError);
-          await localDB.deleteProject(currentProject.id);
-          await localDB.addProject(updatedProject);
-        }
+        // Convert to DB format with required fields
+        const dbProject = {
+          ...updatedProject,
+          startDate: updatedProject.startDate || new Date().toISOString(),
+          endDate: updatedProject.endDate || new Date().toISOString(),
+          materials: updatedProject.materials.map(m => ({
+            id: String(m.id),
+            name: m.name,
+            manufacturer: m.manufacturer,
+            quantity_m2: 0,
+            quantity_m3: 0,
+            units: 0
+          }))
+        };
+        
+        await localDB.updateProject(dbProject);
         
         setCurrentProject(updatedProject);
         onProjectUpdate(updatedProject);
@@ -133,20 +136,22 @@ export function ProjectDetails({
         updatedAt: new Date().toISOString()
       };
       
-      // Try updateProject first, fallback to manual update
-      try {
-        if (localDB.updateProject) {
-          await localDB.updateProject(updatedProject);
-        } else {
-          // Manual update logic if method doesn't exist
-          await localDB.deleteProject(currentProject.id);
-          await localDB.addProject(updatedProject);
-        }
-      } catch (updateError) {
-        console.error('Update failed, trying manual update:', updateError);
-        await localDB.deleteProject(currentProject.id);
-        await localDB.addProject(updatedProject);
-      }
+      // Convert to DB format with required fields
+      const dbProject = {
+        ...updatedProject,
+        startDate: updatedProject.startDate || new Date().toISOString(),
+        endDate: updatedProject.endDate || new Date().toISOString(),
+        materials: updatedProject.materials.map(m => ({
+          id: String(m.id),
+          name: m.name,
+          manufacturer: m.manufacturer,
+          quantity_m2: 0,
+          quantity_m3: 0,
+          units: 0
+        }))
+      };
+      
+      await localDB.updateProject(dbProject);
       
       setCurrentProject(updatedProject);
       onProjectUpdate(updatedProject);

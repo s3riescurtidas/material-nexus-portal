@@ -1,4 +1,3 @@
-
 // Database utilities for local storage using IndexedDB
 interface DBMaterial {
   id: number;
@@ -168,6 +167,22 @@ class LocalDatabase {
       const request = store.add(projectWithTimestamps);
 
       request.onsuccess = () => resolve(request.result as number);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  async updateProject(project: DBProject): Promise<void> {
+    const updatedProject = {
+      ...project,
+      updatedAt: new Date().toISOString()
+    };
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction(['projects'], 'readwrite');
+      const store = transaction.objectStore('projects');
+      const request = store.put(updatedProject);
+
+      request.onsuccess = () => resolve();
       request.onerror = () => reject(request.error);
     });
   }

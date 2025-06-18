@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,6 +47,8 @@ interface Project {
   materials: Material[];
   createdAt: string;
   updatedAt: string;
+  startDate?: string;
+  endDate?: string;
 }
 
 export default function Index() {
@@ -213,40 +214,44 @@ export default function Index() {
   const handleSaveProject = async (projectData: any) => {
     try {
       if (editingProject) {
-        // Update existing project - use addProject if updateProject doesn't exist
+        // Update existing project
         const updatedProject = {
           ...editingProject,
           ...projectData,
           updatedAt: new Date().toISOString()
         };
         
-        // Try updateProject first, fallback to manual update
-        try {
-          if (localDB.updateProject) {
-            await localDB.updateProject(updatedProject);
-          } else {
-            // Manual update logic if method doesn't exist
-            await localDB.deleteProject(editingProject.id);
-            await localDB.addProject(updatedProject);
-          }
-        } catch (updateError) {
-          console.error('Update failed, trying manual update:', updateError);
-          await localDB.deleteProject(editingProject.id);
-          await localDB.addProject(updatedProject);
-        }
+        // Convert to DB format with required fields
+        const dbProject = {
+          ...updatedProject,
+          startDate: updatedProject.startDate || new Date().toISOString(),
+          endDate: updatedProject.endDate || new Date().toISOString(),
+          materials: updatedProject.materials.map((m: Material) => ({
+            id: String(m.id),
+            name: m.name,
+            manufacturer: m.manufacturer,
+            quantity_m2: 0,
+            quantity_m3: 0,
+            units: 0
+          }))
+        };
+        
+        await localDB.updateProject(dbProject);
         
         setProjects(projects.map(p => 
           p.id === editingProject.id ? updatedProject : p
         ));
       } else {
         // Add new project
-        const projectId = await localDB.addProject({
+        const newProjectData = {
           ...projectData,
-          materials: [],
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        });
-        const newProject = { ...projectData, id: projectId, materials: [] };
+          startDate: projectData.startDate || new Date().toISOString(),
+          endDate: projectData.endDate || new Date().toISOString(),
+          materials: []
+        };
+        
+        const projectId = await localDB.addProject(newProjectData);
+        const newProject = { ...projectData, id: projectId, materials: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
         setProjects([...projects, newProject]);
       }
       
@@ -339,6 +344,7 @@ export default function Index() {
   if (showProjectUpload) {
     return (
       <ProjectUpload
+        onClose={() => setShowProjectUpload(false)}
         onProjectsImported={(importedProjects) => {
           setProjects([...projects, ...importedProjects]);
           setShowProjectUpload(false);
@@ -350,6 +356,7 @@ export default function Index() {
   if (showDatabaseManagement) {
     return (
       <DatabaseManagement
+        onClose={() => setShowDatabaseManagement(false)}
         onDataUpdated={loadData}
       />
     );
