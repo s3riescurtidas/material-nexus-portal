@@ -46,6 +46,12 @@ export function MaterialForm({ material, onClose, onSave }) {
         evaluations: evaluations
       });
       console.log('MaterialForm - Loaded evaluations:', evaluations);
+      console.log('MaterialForm - Form data after loading:', {
+        name: material.name,
+        manufacturer: material.manufacturer,
+        category: material.category,
+        subcategory: material.subcategory
+      });
     } else {
       setFormData({
         name: '',
@@ -62,6 +68,7 @@ export function MaterialForm({ material, onClose, onSave }) {
     try {
       const dbConfig = await localDB.getConfig();
       setConfig(dbConfig);
+      console.log('MaterialForm - Config loaded:', dbConfig);
     } catch (error) {
       console.error('Failed to load config:', error);
     }
@@ -69,24 +76,39 @@ export function MaterialForm({ material, onClose, onSave }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('MaterialForm - Submitting material with evaluations:', formData);
-    console.log('MaterialForm - Evaluations count:', formData.evaluations.length);
+    console.log('MaterialForm - Submitting material with data:', formData);
+    console.log('MaterialForm - Material being edited:', material);
     
     try {
       if (material) {
-        // Editing existing material - update in database
+        // Editing existing material - create updated material object
         const updatedMaterial = {
-          ...material,
-          ...formData
+          id: material.id,
+          name: formData.name,
+          manufacturer: formData.manufacturer,
+          category: formData.category,
+          subcategory: formData.subcategory,
+          description: formData.description,
+          evaluations: formData.evaluations,
+          createdAt: material.createdAt || new Date().toISOString(),
+          updatedAt: new Date().toISOString()
         };
-        console.log('MaterialForm - Updating existing material:', updatedMaterial);
+        
+        console.log('MaterialForm - Updating existing material with:', updatedMaterial);
         await localDB.updateMaterial(updatedMaterial);
+        console.log('MaterialForm - Material updated successfully in database');
         onSave(updatedMaterial);
+        console.log('MaterialForm - onSave called with updated material');
       } else {
-        // Creating new material - add to database
+        // Creating new material
         console.log('MaterialForm - Creating new material:', formData);
         const materialId = await localDB.addMaterial(formData);
-        const newMaterial = { ...formData, id: materialId };
+        const newMaterial = { 
+          ...formData, 
+          id: materialId,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
         onSave(newMaterial);
       }
     } catch (error) {
@@ -95,6 +117,7 @@ export function MaterialForm({ material, onClose, onSave }) {
   };
 
   const handleInputChange = (field, value) => {
+    console.log(`MaterialForm - Changing ${field} to:`, value);
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -103,7 +126,7 @@ export function MaterialForm({ material, onClose, onSave }) {
 
   const addEvaluation = (type) => {
     const newEvaluation = {
-      id: `eval_${Date.now()}_${Math.random()}`,
+      id: Date.now(),
       type,
       version: '',
       issueDate: '',
@@ -328,6 +351,7 @@ export function MaterialForm({ material, onClose, onSave }) {
   };
 
   const handleCategoryChange = (value) => {
+    console.log('MaterialForm - Category changed to:', value);
     setFormData(prev => ({
       ...prev,
       category: value,
@@ -340,6 +364,7 @@ export function MaterialForm({ material, onClose, onSave }) {
   console.log('MaterialForm - Current form state:', formData);
   console.log('MaterialForm - Current evaluations:', formData.evaluations);
   console.log('MaterialForm - Active evaluation index:', activeEvaluationIndex);
+  console.log('MaterialForm - Available subcategories for category', formData.category, ':', availableSubcategories);
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
@@ -370,9 +395,7 @@ export function MaterialForm({ material, onClose, onSave }) {
               <Label htmlFor="manufacturer">Manufacturer</Label>
               <Select value={formData.manufacturer} onValueChange={(value) => handleInputChange('manufacturer', value)}>
                 <SelectTrigger className="bg-[#323232] border-[#424242] text-white">
-                  <SelectValue placeholder="Select manufacturer">
-                    {formData.manufacturer || "Select manufacturer"}
-                  </SelectValue>
+                  <SelectValue placeholder="Select manufacturer" />
                 </SelectTrigger>
                 <SelectContent className="bg-[#323232] border-[#424242] z-50">
                   {config.manufacturers.map(mfg => (
@@ -386,9 +409,7 @@ export function MaterialForm({ material, onClose, onSave }) {
               <Label htmlFor="category">Category</Label>
               <Select value={formData.category} onValueChange={handleCategoryChange}>
                 <SelectTrigger className="bg-[#323232] border-[#424242] text-white">
-                  <SelectValue placeholder="Select category">
-                    {formData.category || "Select category"}
-                  </SelectValue>
+                  <SelectValue placeholder="Select category" />
                 </SelectTrigger>
                 <SelectContent className="bg-[#323232] border-[#424242] z-50">
                   {config.categories.map(cat => (
@@ -402,9 +423,7 @@ export function MaterialForm({ material, onClose, onSave }) {
               <Label htmlFor="subcategory" className="text-white">Subcategoria</Label>
               <Select value={formData.subcategory} onValueChange={(value) => handleInputChange('subcategory', value)}>
                 <SelectTrigger className="bg-[#323232] border-[#424242] text-white">
-                  <SelectValue placeholder="Selecionar subcategoria">
-                    {formData.subcategory || "Selecionar subcategoria"}
-                  </SelectValue>
+                  <SelectValue placeholder="Selecionar subcategoria" />
                 </SelectTrigger>
                 <SelectContent className="bg-[#323232] border-[#424242] z-50">
                   {availableSubcategories.map(sub => (
