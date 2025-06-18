@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, Plus, Filter, Eye, Edit, Trash2, FileText, Download, Upload, Settings } from "lucide-react";
+import { Search, Plus, Filter, Eye, Edit, Trash2, FileText, Download, Upload, Settings, Database } from "lucide-react";
 import { MaterialForm } from "@/components/MaterialForm";
 import { MaterialDetails } from "@/components/MaterialDetails";
 import { ProjectForm } from "@/components/ProjectForm";
@@ -67,6 +67,12 @@ export default function Index() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [manufacturers, setManufacturers] = useState<string[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
+  const [config, setConfig] = useState({
+    manufacturers: [],
+    categories: [],
+    subcategories: {},
+    evaluationTypes: []
+  });
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedManufacturer, setSelectedManufacturer] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
@@ -122,7 +128,7 @@ export default function Index() {
 
   const loadData = async () => {
     try {
-      const [dbMaterials, dbProjects, config] = await Promise.all([
+      const [dbMaterials, dbProjects, configData] = await Promise.all([
         localDB.getMaterials(),
         localDB.getProjects(),
         localDB.getConfig()
@@ -136,8 +142,9 @@ export default function Index() {
       const convertedProjects = dbProjects.map(convertFromDBProject);
       setProjects(convertedProjects);
       
-      setManufacturers(config.manufacturers);
-      setCategories(config.categories);
+      setManufacturers(configData.manufacturers);
+      setCategories(configData.categories);
+      setConfig(configData);
     } catch (error) {
       console.error('Failed to load data:', error);
     }
@@ -321,7 +328,7 @@ export default function Index() {
       config: {
         manufacturers,
         categories,
-        subcategories,
+        subcategories: config.subcategories,
         evaluationTypes: config.evaluationTypes
       },
       exportDate: new Date().toISOString()
@@ -340,8 +347,7 @@ export default function Index() {
   };
 
   const handleDataImportComplete = () => {
-    loadMaterials();
-    loadConfig();
+    loadData();
   };
 
   if (isLoading) {
@@ -408,7 +414,7 @@ export default function Index() {
         materials={materials}
         manufacturers={manufacturers}
         categories={categories}
-        subcategories={{}}
+        subcategories={config.subcategories}
         onEditMaterial={handleEditMaterial}
         onDeleteMaterial={handleDeleteMaterial}
         onAddMaterial={handleAddMaterial}
