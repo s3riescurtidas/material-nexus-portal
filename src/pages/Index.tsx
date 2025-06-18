@@ -387,11 +387,7 @@ export default function Index() {
     return (
       <ProjectUpload
         onMaterialsUploaded={(importedMaterials: ProjectMaterial[]) => {
-          // Convert ProjectMaterial to Material format if needed
-          const convertedMaterials = importedMaterials
-            .filter(pm => pm.databaseMaterial)
-            .map(pm => pm.databaseMaterial as Material);
-          setMaterials([...materials, ...convertedMaterials]);
+          console.log('Materials uploaded:', importedMaterials);
           setShowProjectUpload(false);
         }}
         existingMaterials={materials}
@@ -656,10 +652,6 @@ export default function Index() {
               {filteredProjects.map((project) => {
                 const totalMaterials = project.materials.length;
                 const totalEvaluations = project.materials.reduce((sum, material) => sum + material.evaluations.length, 0);
-                const avgConformity = totalEvaluations > 0 
-                  ? Math.round(project.materials.reduce((sum, material) => 
-                      sum + material.evaluations.reduce((evalSum, evaluation) => evalSum + evaluation.conformity, 0), 0) / totalEvaluations)
-                  : 0;
 
                 return (
                   <Card key={project.id} className="bg-[#323232] border-[#424242] hover:border-[#525252] transition-colors">
@@ -670,7 +662,7 @@ export default function Index() {
                     <CardContent>
                       <p className="text-gray-300 text-sm mb-4">{project.description}</p>
                       
-                      <div className="grid grid-cols-3 gap-2 mb-4 text-center">
+                      <div className="grid grid-cols-2 gap-4 mb-4 text-center">
                         <div>
                           <p className="text-lg font-bold text-white">{totalMaterials}</p>
                           <p className="text-xs text-gray-400">Materiais</p>
@@ -678,10 +670,6 @@ export default function Index() {
                         <div>
                           <p className="text-lg font-bold text-white">{totalEvaluations}</p>
                           <p className="text-xs text-gray-400">Avaliações</p>
-                        </div>
-                        <div>
-                          <p className="text-lg font-bold text-white">{avgConformity}%</p>
-                          <p className="text-xs text-gray-400">Conformidade</p>
                         </div>
                       </div>
 

@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,7 +40,8 @@ export function ProjectUpload({ onMaterialsUploaded, existingMaterials = [] }: P
       .toLowerCase()
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
-      .replace(/[^a-z0-9]/g, '')
+      .replace(/[^a-z0-9\s]/g, '')
+      .replace(/\s+/g, ' ')
       .trim();
   };
 
@@ -221,7 +223,7 @@ export function ProjectUpload({ onMaterialsUploaded, existingMaterials = [] }: P
         ))}
         {hasMore && (
           <span className="text-xs px-2 py-1 rounded bg-[#525252] text-gray-300">
-            ...
+            +{material.evaluations.length - 3} mais
           </span>
         )}
       </div>
@@ -326,7 +328,7 @@ export function ProjectUpload({ onMaterialsUploaded, existingMaterials = [] }: P
                           </span>
                         ) : (
                           <span className="text-xs bg-red-600 text-white px-2 py-1 rounded">
-                            Não pertence à base de dados
+                            Não encontrado na base
                           </span>
                         )}
                       </div>
@@ -341,10 +343,19 @@ export function ProjectUpload({ onMaterialsUploaded, existingMaterials = [] }: P
                           <span className="font-medium">Quantidade:</span> {getQuantityDisplay(material)}
                         </div>
                       </div>
-                      {material.databaseMaterial && (
+                      {material.databaseMaterial ? (
                         <div className="mt-2">
                           <span className="text-gray-300 text-sm">Avaliações:</span>
                           {getEvaluationsDisplay(material.databaseMaterial)}
+                        </div>
+                      ) : (
+                        <div className="mt-2 text-red-300 text-sm">
+                          <span className="font-medium">Material do Excel:</span>
+                          <div className="ml-2">
+                            <p>Nome: {material.name}</p>
+                            <p>Fabricante: {material.manufacturer}</p>
+                            <p>Quantidades: {getQuantityDisplay(material)}</p>
+                          </div>
                         </div>
                       )}
                     </div>
