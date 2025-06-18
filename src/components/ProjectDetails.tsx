@@ -7,7 +7,7 @@ import { EvaluationDetails } from "./EvaluationDetails";
 import { localDB } from "@/lib/database";
 
 interface Evaluation {
-  id: string;
+  id: number;
   type: string;
   version: string;
   issueDate: string;

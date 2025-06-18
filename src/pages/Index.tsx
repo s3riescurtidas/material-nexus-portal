@@ -17,7 +17,7 @@ import { DatabaseManagement } from "@/components/DatabaseManagement";
 import { localDB } from "@/lib/database";
 
 interface Evaluation {
-  id: string;
+  id: number;
   type: string;
   version: string;
   issueDate: string;
@@ -86,7 +86,7 @@ export default function Index() {
     ...dbMaterial,
     evaluations: dbMaterial.evaluations?.map((dbEval: any) => ({
       ...dbEval,
-      id: String(dbEval.id)
+      id: Number(dbEval.id)
     })) || []
   });
 
@@ -393,6 +393,7 @@ export default function Index() {
         onAddMaterial={handleAddMaterial}
         onUpdateManufacturers={(newManufacturers: string[]) => setManufacturers(newManufacturers)}
         onUpdateCategories={(newCategories: string[]) => setCategories(newCategories)}
+        onUpdateSubcategories={() => {}}
         onClose={() => setShowDatabaseManagement(false)}
       />
     );
