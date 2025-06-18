@@ -40,6 +40,16 @@ interface Material {
   updatedAt?: string;
 }
 
+interface ProjectMaterial {
+  id: string;
+  name: string;
+  manufacturer: string;
+  quantity_m2?: number;
+  quantity_m3?: number;
+  units?: number;
+  databaseMaterial?: any;
+}
+
 interface Project {
   id: number;
   name: string;
@@ -358,10 +368,15 @@ export default function Index() {
   if (showProjectUpload) {
     return (
       <ProjectUpload
-        onMaterialsUploaded={(importedMaterials: Material[]) => {
-          setMaterials([...materials, ...importedMaterials]);
+        onMaterialsUploaded={(importedMaterials: ProjectMaterial[]) => {
+          // Convert ProjectMaterial to Material format if needed
+          const convertedMaterials = importedMaterials
+            .filter(pm => pm.databaseMaterial)
+            .map(pm => pm.databaseMaterial as Material);
+          setMaterials([...materials, ...convertedMaterials]);
           setShowProjectUpload(false);
         }}
+        existingMaterials={materials}
         onClose={() => setShowProjectUpload(false)}
       />
     );
@@ -374,7 +389,6 @@ export default function Index() {
         manufacturers={manufacturers}
         categories={categories}
         subcategories={{}}
-        onClose={() => setShowDatabaseManagement(false)}
       />
     );
   }
