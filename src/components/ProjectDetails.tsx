@@ -1,4 +1,5 @@
 
+
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -89,6 +90,8 @@ export function ProjectDetails({
           description: updatedProject.description,
           startDate: updatedProject.startDate || new Date().toISOString(),
           endDate: updatedProject.endDate || new Date().toISOString(),
+          createdAt: updatedProject.createdAt,
+          updatedAt: updatedProject.updatedAt,
           materials: updatedProject.materials.map(m => ({
             id: String(m.id),
             name: m.name,
@@ -146,6 +149,8 @@ export function ProjectDetails({
         description: updatedProject.description,
         startDate: updatedProject.startDate || new Date().toISOString(),
         endDate: updatedProject.endDate || new Date().toISOString(),
+        createdAt: updatedProject.createdAt,
+        updatedAt: updatedProject.updatedAt,
         materials: updatedProject.materials.map(m => ({
           id: String(m.id),
           name: m.name,

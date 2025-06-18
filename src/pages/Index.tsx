@@ -228,6 +228,8 @@ export default function Index() {
           description: updatedProject.description,
           startDate: updatedProject.startDate || new Date().toISOString(),
           endDate: updatedProject.endDate || new Date().toISOString(),
+          createdAt: updatedProject.createdAt,
+          updatedAt: updatedProject.updatedAt,
           materials: updatedProject.materials?.map((m: Material) => ({
             id: String(m.id),
             name: m.name,
@@ -352,20 +354,13 @@ export default function Index() {
 
   if (showProjectUpload) {
     return (
-      <ProjectUpload
-        onProjectsImported={(importedProjects) => {
-          setProjects([...projects, ...importedProjects]);
-          setShowProjectUpload(false);
-        }}
-      />
+      <ProjectUpload />
     );
   }
 
   if (showDatabaseManagement) {
     return (
-      <DatabaseManagement
-        onDataUpdated={loadData}
-      />
+      <DatabaseManagement />
     );
   }
 
