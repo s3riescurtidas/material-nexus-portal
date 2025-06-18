@@ -1,5 +1,3 @@
-
-
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -188,7 +186,19 @@ export function ProjectDetails({
   };
 
   const handleEvaluationClick = (evaluation: Evaluation) => {
-    setSelectedEvaluation(evaluation);
+    // Ensure the evaluation has the correct type structure
+    const formattedEvaluation: Evaluation = {
+      id: String(evaluation.id),
+      type: evaluation.type,
+      version: evaluation.version,
+      issueDate: evaluation.issueDate,
+      validTo: evaluation.validTo,
+      conformity: evaluation.conformity,
+      geographicArea: evaluation.geographicArea,
+      fileName: evaluation.fileName,
+      ...evaluation
+    };
+    setSelectedEvaluation(formattedEvaluation);
   };
 
   const handleExportProject = () => {

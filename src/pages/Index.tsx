@@ -286,7 +286,19 @@ export default function Index() {
   };
 
   const handleEvaluationClick = (evaluation: Evaluation) => {
-    setSelectedEvaluation(evaluation);
+    // Ensure the evaluation has the correct type structure
+    const formattedEvaluation: Evaluation = {
+      id: String(evaluation.id),
+      type: evaluation.type,
+      version: evaluation.version,
+      issueDate: evaluation.issueDate,
+      validTo: evaluation.validTo,
+      conformity: evaluation.conformity,
+      geographicArea: evaluation.geographicArea,
+      fileName: evaluation.fileName,
+      ...evaluation
+    };
+    setSelectedEvaluation(formattedEvaluation);
   };
 
   const handleOpenFile = (fileName: string) => {
@@ -354,13 +366,30 @@ export default function Index() {
 
   if (showProjectUpload) {
     return (
-      <ProjectUpload />
+      <ProjectUpload
+        onMaterialsUploaded={(importedMaterials) => {
+          setMaterials([...materials, ...importedMaterials]);
+          setShowProjectUpload(false);
+        }}
+      />
     );
   }
 
   if (showDatabaseManagement) {
     return (
-      <DatabaseManagement />
+      <DatabaseManagement
+        materials={materials}
+        manufacturers={manufacturers}
+        categories={categories}
+        subcategories={{}}
+        evaluationTypes={[]}
+        onMaterialsUpdate={setMaterials}
+        onConfigUpdate={(config) => {
+          setManufacturers(config.manufacturers);
+          setCategories(config.categories);
+        }}
+        onClose={() => setShowDatabaseManagement(false)}
+      />
     );
   }
 
