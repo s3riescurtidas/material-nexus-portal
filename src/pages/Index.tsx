@@ -377,7 +377,6 @@ export default function Index() {
           setShowProjectUpload(false);
         }}
         existingMaterials={materials}
-        onClose={() => setShowProjectUpload(false)}
       />
     );
   }
@@ -389,6 +388,12 @@ export default function Index() {
         manufacturers={manufacturers}
         categories={categories}
         subcategories={{}}
+        onEditMaterial={handleEditMaterial}
+        onDeleteMaterial={handleDeleteMaterial}
+        onAddMaterial={handleAddMaterial}
+        onUpdateManufacturers={(newManufacturers: string[]) => setManufacturers(newManufacturers)}
+        onUpdateCategories={(newCategories: string[]) => setCategories(newCategories)}
+        onClose={() => setShowDatabaseManagement(false)}
       />
     );
   }
