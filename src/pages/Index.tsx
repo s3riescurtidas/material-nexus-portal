@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, Plus, Filter, Eye, Edit, Trash2, FileText, Download, Upload, Settings, Database } from "lucide-react";
+import { Search, Plus, Filter, Eye, Edit, Trash2, FileText, Download, Upload, Settings, Database, RefreshCcw } from "lucide-react";
 import { MaterialForm } from "@/components/MaterialForm";
 import { MaterialDetails } from "@/components/MaterialDetails";
 import { ProjectForm } from "@/components/ProjectForm";
@@ -161,8 +161,8 @@ export default function Index() {
   const filteredMaterials = materials.filter(material => {
     const matchesSearch = material.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          material.description.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesManufacturer = !selectedManufacturer || material.manufacturer === selectedManufacturer;
-    const matchesCategory = !selectedCategory || material.category === selectedCategory;
+    const matchesManufacturer = !selectedManufacturer || selectedManufacturer === 'all' || material.manufacturer === selectedManufacturer;
+    const matchesCategory = !selectedCategory || selectedCategory === 'all' || material.category === selectedCategory;
     
     return matchesSearch && matchesManufacturer && matchesCategory;
   });
@@ -172,6 +172,12 @@ export default function Index() {
     return project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
            project.description.toLowerCase().includes(searchTerm.toLowerCase());
   });
+
+  const clearFilters = () => {
+    setSearchTerm('');
+    setSelectedManufacturer('');
+    setSelectedCategory('');
+  };
 
   const handleAddMaterial = () => {
     setEditingMaterial(null);
@@ -563,6 +569,15 @@ export default function Index() {
                     ))}
                   </SelectContent>
                 </Select>
+
+                <Button 
+                  onClick={clearFilters}
+                  variant="outline"
+                  className="bg-[#424242] hover:bg-[#525252] text-white border-[#525252]"
+                >
+                  <RefreshCcw className="mr-2 h-4 w-4" />
+                  Limpar Filtros
+                </Button>
               </>
             )}
 
