@@ -404,9 +404,12 @@ export function MaterialForm({ material, onClose, onSave }) {
 
             <div>
               <Label htmlFor="manufacturer">Manufacturer</Label>
-              <Select value={formData.manufacturer} onValueChange={(value) => handleInputChange('manufacturer', value)}>
+              <Select 
+                value={formData.manufacturer || ''} 
+                onValueChange={(value) => handleInputChange('manufacturer', value)}
+              >
                 <SelectTrigger className="bg-[#323232] border-[#424242] text-white">
-                  <SelectValue />
+                  <SelectValue placeholder="Select manufacturer..." />
                 </SelectTrigger>
                 <SelectContent className="bg-[#323232] border-[#424242] z-50">
                   {config.manufacturers.map(mfg => (
@@ -418,9 +421,12 @@ export function MaterialForm({ material, onClose, onSave }) {
 
             <div>
               <Label htmlFor="category">Category</Label>
-              <Select value={formData.category} onValueChange={handleCategoryChange}>
+              <Select 
+                value={formData.category || ''} 
+                onValueChange={handleCategoryChange}
+              >
                 <SelectTrigger className="bg-[#323232] border-[#424242] text-white">
-                  <SelectValue />
+                  <SelectValue placeholder="Select category..." />
                 </SelectTrigger>
                 <SelectContent className="bg-[#323232] border-[#424242] z-50">
                   {config.categories.map(cat => (
@@ -432,9 +438,12 @@ export function MaterialForm({ material, onClose, onSave }) {
 
             <div>
               <Label htmlFor="subcategory" className="text-white">Subcategoria</Label>
-              <Select value={formData.subcategory} onValueChange={(value) => handleInputChange('subcategory', value)}>
+              <Select 
+                value={formData.subcategory || ''} 
+                onValueChange={(value) => handleInputChange('subcategory', value)}
+              >
                 <SelectTrigger className="bg-[#323232] border-[#424242] text-white">
-                  <SelectValue />
+                  <SelectValue placeholder="Select subcategory..." />
                 </SelectTrigger>
                 <SelectContent className="bg-[#323232] border-[#424242] z-50">
                   {availableSubcategories.map(sub => (
