@@ -33,33 +33,66 @@ export function ProjectUpload({ onMaterialsUploaded, existingMaterials = [] }: P
     errors: string[];
   } | null>(null);
 
-  // Função de normalização melhorada
+  // Função de normalização melhorada para lidar com caracteres especiais portugueses
   const normalizeText = (text: string) => {
     if (!text) return '';
     
-    console.log('🔧 Normalizing text:', text);
-    
-    // Converter para lowercase e remover acentos
     let normalized = text
       .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "");
-    
-    // Remover caracteres especiais, manter apenas letras, números e espaços
-    normalized = normalized.replace(/[^a-z0-9\s]/g, ' ');
-    
-    // Normalizar espaços múltiplos para espaços únicos
-    normalized = normalized.replace(/\s+/g, ' ');
-    
-    // Remover espaços no início e fim
-    normalized = normalized.trim();
-    
-    console.log('✅ Normalized result:', normalized);
+      .trim()
+      // Normalizar caracteres portugueses específicos
+      .replace(/ã/g, 'a')
+      .replace(/á/g, 'a')
+      .replace(/à/g, 'a')
+      .replace(/â/g, 'a')
+      .replace(/é/g, 'e')
+      .replace(/ê/g, 'e')
+      .replace(/í/g, 'i')
+      .replace(/ó/g, 'o')
+      .replace(/ô/g, 'o')
+      .replace(/õ/g, 'o')
+      .replace(/ú/g, 'u')
+      .replace(/ü/g, 'u')
+      .replace(/ç/g, 'c')
+      // Remover pontuação e caracteres especiais, manter espaços
+      .replace(/[^\w\s]/g, ' ')
+      // Normalizar espaços múltiplos
+      .replace(/\s+/g, ' ')
+      .trim();
     
     return normalized;
   };
 
-  // Função de correspondência completamente reescrita
+  // Função para calcular similaridade entre strings
+  const calculateSimilarity = (str1: string, str2: string) => {
+    const s1 = normalizeText(str1);
+    const s2 = normalizeText(str2);
+    
+    if (s1 === s2) return 1;
+    
+    const words1 = s1.split(' ').filter(w => w.length > 1);
+    const words2 = s2.split(' ').filter(w => w.length > 1);
+    
+    let matches = 0;
+    const totalWords = Math.max(words1.length, words2.length);
+    
+    words1.forEach(word1 => {
+      const found = words2.some(word2 => {
+        // Correspondência exata
+        if (word1 === word2) return true;
+        // Uma palavra contém a outra (mínimo 3 caracteres)
+        if (word1.length >= 3 && word2.length >= 3) {
+          return word1.includes(word2) || word2.includes(word1);
+        }
+        return false;
+      });
+      if (found) matches++;
+    });
+    
+    return totalWords > 0 ? matches / totalWords : 0;
+  };
+
+  // Função de correspondência completamente reescrita e melhorada
   const findMatchingMaterial = (excelMaterial: any, databaseMaterials: any[]) => {
     const excelName = normalizeText(excelMaterial.name);
     const excelManufacturer = normalizeText(excelMaterial.manufacturer);
@@ -72,87 +105,88 @@ export function ProjectUpload({ onMaterialsUploaded, existingMaterials = [] }: P
     });
     console.log('📊 Database has', databaseMaterials.length, 'materials to search');
 
-    // 1. CORRESPONDÊNCIA EXATA (nome e fabricante)
-    console.log('\n🎯 Step 1: Trying EXACT MATCH (name + manufacturer)...');
+    let bestMatch = null;
+    let bestScore = 0;
+
+    // Procurar em todos os materiais da base de dados
     for (let i = 0; i < databaseMaterials.length; i++) {
       const dbMaterial = databaseMaterials[i];
       const dbName = normalizeText(dbMaterial.name);
       const dbManufacturer = normalizeText(dbMaterial.manufacturer);
       
-      console.log(`  Checking DB[${i}]: "${dbName}" by "${dbManufacturer}"`);
-      
+      console.log(`\n🔍 Checking DB[${i}]: "${dbMaterial.name}" by "${dbMaterial.manufacturer}"`);
+      console.log(`  Normalized: "${dbName}" by "${dbManufacturer}"`);
+
+      // 1. CORRESPONDÊNCIA EXATA (100%)
       if (dbName === excelName && dbManufacturer === excelManufacturer) {
-        console.log('✅ EXACT MATCH FOUND!', dbMaterial);
+        console.log('✅ PERFECT MATCH FOUND (100%)!');
         return dbMaterial;
       }
-    }
 
-    // 2. CORRESPONDÊNCIA POR NOME EXATO (ignora fabricante)
-    console.log('\n🎯 Step 2: Trying EXACT NAME MATCH (ignore manufacturer)...');
-    for (let i = 0; i < databaseMaterials.length; i++) {
-      const dbMaterial = databaseMaterials[i];
-      const dbName = normalizeText(dbMaterial.name);
-      
-      console.log(`  Checking DB[${i}]: "${dbName}"`);
-      
+      // 2. CORRESPONDÊNCIA EXATA APENAS NO NOME (95%)
       if (dbName === excelName) {
-        console.log('✅ EXACT NAME MATCH FOUND!', dbMaterial);
-        return dbMaterial;
-      }
-    }
-
-    // 3. CORRESPONDÊNCIA PARCIAL (contém palavras-chave)
-    console.log('\n🎯 Step 3: Trying PARTIAL MATCH (contains keywords)...');
-    const excelWords = excelName.split(' ').filter(word => word.length > 2);
-    console.log('📝 Excel keywords:', excelWords);
-    
-    for (let i = 0; i < databaseMaterials.length; i++) {
-      const dbMaterial = databaseMaterials[i];
-      const dbName = normalizeText(dbMaterial.name);
-      const dbWords = dbName.split(' ').filter(word => word.length > 2);
-      
-      console.log(`  Checking DB[${i}]: "${dbName}" (keywords: [${dbWords.join(', ')}])`);
-      
-      // Verifica se pelo menos 70% das palavras do Excel estão no nome da DB
-      let matchingWords = 0;
-      excelWords.forEach(excelWord => {
-        const found = dbWords.some(dbWord => 
-          dbWord.includes(excelWord) || excelWord.includes(dbWord)
-        );
-        if (found) {
-          matchingWords++;
-          console.log(`    ✓ Word "${excelWord}" matches`);
+        console.log('✅ EXACT NAME MATCH (95%)!');
+        if (bestScore < 0.95) {
+          bestMatch = dbMaterial;
+          bestScore = 0.95;
         }
-      });
+        continue;
+      }
+
+      // 3. CORRESPONDÊNCIA POR SIMILARIDADE NO NOME
+      const nameSimilarity = calculateSimilarity(excelName, dbName);
+      let manufacturerSimilarity = 0;
       
-      const matchPercentage = excelWords.length > 0 ? (matchingWords / excelWords.length) : 0;
-      console.log(`    Match percentage: ${(matchPercentage * 100).toFixed(1)}%`);
+      if (excelManufacturer && dbManufacturer) {
+        manufacturerSimilarity = calculateSimilarity(excelManufacturer, dbManufacturer);
+      }
+
+      // Score combinado: 70% nome, 30% fabricante
+      const combinedScore = (nameSimilarity * 0.7) + (manufacturerSimilarity * 0.3);
       
-      if (matchPercentage >= 0.7) {
-        console.log('✅ PARTIAL MATCH FOUND!', dbMaterial);
-        return dbMaterial;
+      console.log(`  Name similarity: ${(nameSimilarity * 100).toFixed(1)}%`);
+      console.log(`  Manufacturer similarity: ${(manufacturerSimilarity * 100).toFixed(1)}%`);
+      console.log(`  Combined score: ${(combinedScore * 100).toFixed(1)}%`);
+
+      // Aceitar se a similaridade for alta o suficiente
+      if (combinedScore > bestScore && combinedScore >= 0.6) {
+        bestMatch = dbMaterial;
+        bestScore = combinedScore;
+        console.log(`  ⭐ New best match with score ${(combinedScore * 100).toFixed(1)}%`);
+      }
+
+      // 4. CORRESPONDÊNCIA FLEXÍVEL - verifica se uma string contém a outra
+      if (bestScore < 0.5) {
+        const excelWords = excelName.split(' ').filter(w => w.length > 2);
+        const dbWords = dbName.split(' ').filter(w => w.length > 2);
+        
+        let containsMatches = 0;
+        excelWords.forEach(excelWord => {
+          dbWords.forEach(dbWord => {
+            if (excelWord.includes(dbWord) || dbWord.includes(excelWord)) {
+              containsMatches++;
+            }
+          });
+        });
+        
+        const containsScore = excelWords.length > 0 ? containsMatches / excelWords.length : 0;
+        
+        if (containsScore > bestScore && containsScore >= 0.4) {
+          bestMatch = dbMaterial;
+          bestScore = containsScore;
+          console.log(`  📝 Flexible match with score ${(containsScore * 100).toFixed(1)}%`);
+        }
       }
     }
 
-    // 4. CORRESPONDÊNCIA FLEXÍVEL (busca por similaridade)
-    console.log('\n🎯 Step 4: Trying FLEXIBLE MATCH (similarity search)...');
-    for (let i = 0; i < databaseMaterials.length; i++) {
-      const dbMaterial = databaseMaterials[i];
-      const dbName = normalizeText(dbMaterial.name);
-      
-      console.log(`  Checking DB[${i}]: "${dbName}"`);
-      
-      // Verifica se o nome do Excel contém parte do nome da DB ou vice-versa
-      if ((excelName.includes(dbName) && dbName.length > 5) || 
-          (dbName.includes(excelName) && excelName.length > 5)) {
-        console.log('✅ FLEXIBLE MATCH FOUND!', dbMaterial);
-        return dbMaterial;
-      }
+    if (bestMatch) {
+      console.log(`✅ BEST MATCH FOUND with score ${(bestScore * 100).toFixed(1)}%:`, bestMatch.name);
+    } else {
+      console.log('❌ NO SUITABLE MATCH FOUND');
     }
-
-    console.log('❌ NO MATCH FOUND for:', excelMaterial.name, 'by', excelMaterial.manufacturer);
+    
     console.log('🔍 ===========================================\n');
-    return null;
+    return bestMatch;
   };
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -177,7 +211,7 @@ export function ProjectUpload({ onMaterialsUploaded, existingMaterials = [] }: P
       console.log('📊 STARTING EXCEL PROCESSING');
       console.log('📊 Database has', existingMaterials.length, 'materials');
       console.log('📋 Database materials preview:');
-      existingMaterials.slice(0, 5).forEach((m, i) => {
+      existingMaterials.slice(0, 10).forEach((m, i) => {
         console.log(`  DB[${i}]: "${m.name}" by "${m.manufacturer}"`);
       });
       console.log('📊 ===========================================\n');
