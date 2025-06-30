@@ -33,159 +33,221 @@ export function ProjectUpload({ onMaterialsUploaded, existingMaterials = [] }: P
     errors: string[];
   } | null>(null);
 
-  // Função de normalização melhorada para lidar com caracteres especiais portugueses
-  const normalizeText = (text: string) => {
-    if (!text) return '';
+  // Normalização de texto extremamente robusta
+  const normalizeText = (text: string): string => {
+    if (!text || typeof text !== 'string') return '';
     
-    let normalized = text
+    return text
       .toLowerCase()
       .trim()
-      // Normalizar caracteres portugueses específicos
-      .replace(/ã/g, 'a')
-      .replace(/á/g, 'a')
-      .replace(/à/g, 'a')
-      .replace(/â/g, 'a')
-      .replace(/é/g, 'e')
-      .replace(/ê/g, 'e')
-      .replace(/í/g, 'i')
-      .replace(/ó/g, 'o')
-      .replace(/ô/g, 'o')
-      .replace(/õ/g, 'o')
-      .replace(/ú/g, 'u')
-      .replace(/ü/g, 'u')
+      // Remover acentos portugueses
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      // Caracteres específicos portugueses
+      .replace(/ã/g, 'a').replace(/á/g, 'a').replace(/à/g, 'a').replace(/â/g, 'a')
+      .replace(/é/g, 'e').replace(/ê/g, 'e').replace(/è/g, 'e')
+      .replace(/í/g, 'i').replace(/î/g, 'i').replace(/ì/g, 'i')
+      .replace(/ó/g, 'o').replace(/ô/g, 'o').replace(/õ/g, 'o').replace(/ò/g, 'o')
+      .replace(/ú/g, 'u').replace(/û/g, 'u').replace(/ù/g, 'u').replace(/ü/g, 'u')
       .replace(/ç/g, 'c')
-      // Remover pontuação e caracteres especiais, manter espaços
-      .replace(/[^\w\s]/g, ' ')
-      // Normalizar espaços múltiplos
+      // Remover pontuação, manter apenas letras, números e espaços
+      .replace(/[^a-z0-9\s]/g, ' ')
+      // Normalizar espaços
       .replace(/\s+/g, ' ')
       .trim();
-    
-    return normalized;
   };
 
-  // Função para calcular similaridade entre strings
-  const calculateSimilarity = (str1: string, str2: string) => {
+  // Extrair palavras-chave significativas
+  const extractKeywords = (text: string): string[] => {
+    const normalized = normalizeText(text);
+    const words = normalized.split(' ').filter(word => 
+      word.length >= 3 && // Palavras com pelo menos 3 caracteres
+      !['para', 'com', 'por', 'sem', 'the', 'and', 'for', 'with'].includes(word) // Excluir palavras comuns
+    );
+    return [...new Set(words)]; // Remover duplicados
+  };
+
+  // Calcular similaridade entre duas strings
+  const calculateStringSimilarity = (str1: string, str2: string): number => {
     const s1 = normalizeText(str1);
     const s2 = normalizeText(str2);
     
-    if (s1 === s2) return 1;
+    if (s1 === s2) return 1.0;
+    if (!s1 || !s2) return 0;
     
-    const words1 = s1.split(' ').filter(w => w.length > 1);
-    const words2 = s2.split(' ').filter(w => w.length > 1);
+    // Algoritmo de Levenshtein simplificado
+    const matrix = [];
+    const len1 = s1.length;
+    const len2 = s2.length;
     
-    let matches = 0;
-    const totalWords = Math.max(words1.length, words2.length);
+    for (let i = 0; i <= len2; i++) {
+      matrix[i] = [i];
+    }
+    for (let j = 0; j <= len1; j++) {
+      matrix[0][j] = j;
+    }
     
-    words1.forEach(word1 => {
-      const found = words2.some(word2 => {
-        // Correspondência exata
-        if (word1 === word2) return true;
-        // Uma palavra contém a outra (mínimo 3 caracteres)
-        if (word1.length >= 3 && word2.length >= 3) {
-          return word1.includes(word2) || word2.includes(word1);
+    for (let i = 1; i <= len2; i++) {
+      for (let j = 1; j <= len1; j++) {
+        if (s2.charAt(i - 1) === s1.charAt(j - 1)) {
+          matrix[i][j] = matrix[i - 1][j - 1];
+        } else {
+          matrix[i][j] = Math.min(
+            matrix[i - 1][j - 1] + 1,
+            matrix[i][j - 1] + 1,
+            matrix[i - 1][j] + 1
+          );
         }
-        return false;
-      });
-      if (found) matches++;
-    });
+      }
+    }
     
-    return totalWords > 0 ? matches / totalWords : 0;
+    const maxLen = Math.max(len1, len2);
+    return maxLen === 0 ? 1 : (maxLen - matrix[len2][len1]) / maxLen;
   };
 
-  // Função de correspondência completamente reescrita e melhorada
-  const findMatchingMaterial = (excelMaterial: any, databaseMaterials: any[]) => {
-    const excelName = normalizeText(excelMaterial.name);
-    const excelManufacturer = normalizeText(excelMaterial.manufacturer);
+  // Calcular similaridade entre palavras-chave
+  const calculateKeywordSimilarity = (keywords1: string[], keywords2: string[]): number => {
+    if (keywords1.length === 0 || keywords2.length === 0) return 0;
+    
+    let matches = 0;
+    const totalKeywords = Math.max(keywords1.length, keywords2.length);
+    
+    keywords1.forEach(keyword1 => {
+      const bestMatch = Math.max(...keywords2.map(keyword2 => {
+        // Correspondência exata
+        if (keyword1 === keyword2) return 1;
+        
+        // Uma palavra contém a outra
+        if (keyword1.length >= 3 && keyword2.length >= 3) {
+          if (keyword1.includes(keyword2) || keyword2.includes(keyword1)) {
+            return 0.8;
+          }
+        }
+        
+        // Similaridade de string
+        return calculateStringSimilarity(keyword1, keyword2);
+      }));
+      
+      if (bestMatch > 0.6) matches += bestMatch;
+    });
+    
+    return totalKeywords > 0 ? matches / totalKeywords : 0;
+  };
 
-    console.log('\n🔍 ===========================================');
-    console.log('🔍 SEARCHING FOR MATERIAL:');
+  // Algoritmo principal de correspondência de materiais
+  const findMatchingMaterial = (excelMaterial: any, databaseMaterials: any[]) => {
+    if (!databaseMaterials || databaseMaterials.length === 0) {
+      console.log('❌ Database materials is empty or undefined');
+      return null;
+    }
+
+    const excelName = normalizeText(excelMaterial.name || '');
+    const excelManufacturer = normalizeText(excelMaterial.manufacturer || '');
+    
+    console.log('\n🔍 =============================================');
+    console.log('🔍 MATERIAL MATCHING ANALYSIS');
     console.log('📋 Excel Material:', {
       original: { name: excelMaterial.name, manufacturer: excelMaterial.manufacturer },
       normalized: { name: excelName, manufacturer: excelManufacturer }
     });
-    console.log('📊 Database has', databaseMaterials.length, 'materials to search');
+    console.log('📊 Searching in', databaseMaterials.length, 'database materials');
+    
+    if (!excelName) {
+      console.log('❌ Excel material name is empty');
+      return null;
+    }
 
     let bestMatch = null;
     let bestScore = 0;
+    const MIN_SCORE = 0.5; // Score mínimo para considerar uma correspondência
+    
+    const excelNameKeywords = extractKeywords(excelName);
+    console.log('🔑 Excel keywords:', excelNameKeywords);
 
-    // Procurar em todos os materiais da base de dados
-    for (let i = 0; i < databaseMaterials.length; i++) {
-      const dbMaterial = databaseMaterials[i];
-      const dbName = normalizeText(dbMaterial.name);
-      const dbManufacturer = normalizeText(dbMaterial.manufacturer);
+    // Iterar por todos os materiais da base de dados
+    databaseMaterials.forEach((dbMaterial, index) => {
+      const dbName = normalizeText(dbMaterial.name || '');
+      const dbManufacturer = normalizeText(dbMaterial.manufacturer || '');
       
-      console.log(`\n🔍 Checking DB[${i}]: "${dbMaterial.name}" by "${dbMaterial.manufacturer}"`);
-      console.log(`  Normalized: "${dbName}" by "${dbManufacturer}"`);
+      if (!dbName) return; // Skip materiais sem nome
+      
+      console.log(`\n🔍 [${index + 1}/${databaseMaterials.length}] Analyzing:`, {
+        db: { name: dbMaterial.name, manufacturer: dbMaterial.manufacturer },
+        normalized: { name: dbName, manufacturer: dbManufacturer }
+      });
 
-      // 1. CORRESPONDÊNCIA EXATA (100%)
+      let totalScore = 0;
+      let matchType = '';
+
+      // 1. CORRESPONDÊNCIA EXATA COMPLETA (100%)
       if (dbName === excelName && dbManufacturer === excelManufacturer) {
-        console.log('✅ PERFECT MATCH FOUND (100%)!');
-        return dbMaterial;
+        totalScore = 1.0;
+        matchType = 'EXACT_COMPLETE';
+        console.log('✅ EXACT COMPLETE MATCH (100%)');
       }
-
-      // 2. CORRESPONDÊNCIA EXATA APENAS NO NOME (95%)
-      if (dbName === excelName) {
-        console.log('✅ EXACT NAME MATCH (95%)!');
-        if (bestScore < 0.95) {
-          bestMatch = dbMaterial;
-          bestScore = 0.95;
+      // 2. CORRESPONDÊNCIA EXATA APENAS NO NOME (90%)
+      else if (dbName === excelName) {
+        totalScore = 0.9;
+        matchType = 'EXACT_NAME';
+        console.log('✅ EXACT NAME MATCH (90%)');
+      }
+      // 3. CORRESPONDÊNCIA POR SIMILARIDADE
+      else {
+        const dbNameKeywords = extractKeywords(dbName);
+        console.log('🔑 DB keywords:', dbNameKeywords);
+        
+        // Similaridade de string direta
+        const stringSimilarity = calculateStringSimilarity(excelName, dbName);
+        console.log('📊 String similarity:', (stringSimilarity * 100).toFixed(1) + '%');
+        
+        // Similaridade de palavras-chave
+        const keywordSimilarity = calculateKeywordSimilarity(excelNameKeywords, dbNameKeywords);
+        console.log('🔑 Keyword similarity:', (keywordSimilarity * 100).toFixed(1) + '%');
+        
+        // Verificar se uma string contém a outra
+        let containsScore = 0;
+        if (excelName.includes(dbName) || dbName.includes(excelName)) {
+          containsScore = 0.7;
+          console.log('📝 Contains match found (70%)');
         }
-        continue;
+        
+        // Similaridade do fabricante (se disponível)
+        let manufacturerSimilarity = 0;
+        if (excelManufacturer && dbManufacturer) {
+          manufacturerSimilarity = calculateStringSimilarity(excelManufacturer, dbManufacturer);
+          console.log('🏭 Manufacturer similarity:', (manufacturerSimilarity * 100).toFixed(1) + '%');
+        }
+        
+        // Score combinado: 60% nome, 20% palavras-chave, 20% fabricante
+        totalScore = (stringSimilarity * 0.6) + (keywordSimilarity * 0.2) + (manufacturerSimilarity * 0.2);
+        
+        // Bonus por correspondência "contains"
+        if (containsScore > 0) {
+          totalScore = Math.max(totalScore, containsScore);
+          matchType = 'CONTAINS';
+        } else {
+          matchType = 'SIMILARITY';
+        }
+        
+        console.log('📊 Combined score:', (totalScore * 100).toFixed(1) + '%');
       }
 
-      // 3. CORRESPONDÊNCIA POR SIMILARIDADE NO NOME
-      const nameSimilarity = calculateSimilarity(excelName, dbName);
-      let manufacturerSimilarity = 0;
-      
-      if (excelManufacturer && dbManufacturer) {
-        manufacturerSimilarity = calculateSimilarity(excelManufacturer, dbManufacturer);
-      }
-
-      // Score combinado: 70% nome, 30% fabricante
-      const combinedScore = (nameSimilarity * 0.7) + (manufacturerSimilarity * 0.3);
-      
-      console.log(`  Name similarity: ${(nameSimilarity * 100).toFixed(1)}%`);
-      console.log(`  Manufacturer similarity: ${(manufacturerSimilarity * 100).toFixed(1)}%`);
-      console.log(`  Combined score: ${(combinedScore * 100).toFixed(1)}%`);
-
-      // Aceitar se a similaridade for alta o suficiente
-      if (combinedScore > bestScore && combinedScore >= 0.6) {
+      // Atualizar melhor correspondência se o score for superior
+      if (totalScore > bestScore && totalScore >= MIN_SCORE) {
         bestMatch = dbMaterial;
-        bestScore = combinedScore;
-        console.log(`  ⭐ New best match with score ${(combinedScore * 100).toFixed(1)}%`);
+        bestScore = totalScore;
+        console.log(`⭐ NEW BEST MATCH (${matchType}): ${(totalScore * 100).toFixed(1)}%`);
       }
-
-      // 4. CORRESPONDÊNCIA FLEXÍVEL - verifica se uma string contém a outra
-      if (bestScore < 0.5) {
-        const excelWords = excelName.split(' ').filter(w => w.length > 2);
-        const dbWords = dbName.split(' ').filter(w => w.length > 2);
-        
-        let containsMatches = 0;
-        excelWords.forEach(excelWord => {
-          dbWords.forEach(dbWord => {
-            if (excelWord.includes(dbWord) || dbWord.includes(excelWord)) {
-              containsMatches++;
-            }
-          });
-        });
-        
-        const containsScore = excelWords.length > 0 ? containsMatches / excelWords.length : 0;
-        
-        if (containsScore > bestScore && containsScore >= 0.4) {
-          bestMatch = dbMaterial;
-          bestScore = containsScore;
-          console.log(`  📝 Flexible match with score ${(containsScore * 100).toFixed(1)}%`);
-        }
-      }
-    }
+    });
 
     if (bestMatch) {
-      console.log(`✅ BEST MATCH FOUND with score ${(bestScore * 100).toFixed(1)}%:`, bestMatch.name);
+      console.log(`✅ FINAL MATCH FOUND with score ${(bestScore * 100).toFixed(1)}%:`);
+      console.log('  -', bestMatch.name, 'by', bestMatch.manufacturer);
     } else {
-      console.log('❌ NO SUITABLE MATCH FOUND');
+      console.log('❌ NO SUITABLE MATCH FOUND (minimum score: ' + (MIN_SCORE * 100) + '%)');
     }
     
-    console.log('🔍 ===========================================\n');
+    console.log('🔍 =============================================\n');
     return bestMatch;
   };
 
@@ -207,14 +269,15 @@ export function ProjectUpload({ onMaterialsUploaded, existingMaterials = [] }: P
     setProcessingResults(null);
 
     try {
-      console.log('\n📊 ===========================================');
-      console.log('📊 STARTING EXCEL PROCESSING');
-      console.log('📊 Database has', existingMaterials.length, 'materials');
-      console.log('📋 Database materials preview:');
-      existingMaterials.slice(0, 10).forEach((m, i) => {
-        console.log(`  DB[${i}]: "${m.name}" by "${m.manufacturer}"`);
+      console.log('\n📊 =================== EXCEL PROCESSING START ===================');
+      console.log('📊 Database contains', existingMaterials.length, 'materials');
+      
+      // Log alguns materiais da base para debug
+      console.log('📋 Database sample materials:');
+      existingMaterials.slice(0, 5).forEach((m, i) => {
+        console.log(`  [${i + 1}] "${m.name}" by "${m.manufacturer}"`);
       });
-      console.log('📊 ===========================================\n');
+      console.log('📊 ============================================================\n');
       
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data);
@@ -222,7 +285,7 @@ export function ProjectUpload({ onMaterialsUploaded, existingMaterials = [] }: P
       const worksheet = workbook.Sheets[sheetName];
       const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
 
-      // Skip header row and process data
+      // Pular linha de cabeçalho
       const rows = jsonData.slice(1) as any[][];
       
       if (rows.length === 0) {
@@ -234,10 +297,12 @@ export function ProjectUpload({ onMaterialsUploaded, existingMaterials = [] }: P
       const errors: string[] = [];
       let validRowsCount = 0;
 
-      rows.forEach((row, index) => {
+      // Processar cada linha do Excel
+      for (let index = 0; index < rows.length; index++) {
+        const row = rows[index];
+        const rowNumber = index + 2;
+        
         try {
-          const rowNumber = index + 2;
-          
           const id = row[0]?.toString().trim() || '';
           const name = row[1]?.toString().trim() || '';
           const manufacturer = row[2]?.toString().trim() || '';
@@ -245,34 +310,40 @@ export function ProjectUpload({ onMaterialsUploaded, existingMaterials = [] }: P
           const m3 = row[4] ? parseFloat(row[4].toString()) : undefined;
           const units = row[5] ? parseFloat(row[5].toString()) : undefined;
 
-          // Skip completely empty rows
+          // Pular linhas completamente vazias
           if (!id && !name && !manufacturer && !m2 && !m3 && !units) {
-            return;
+            continue;
           }
 
           validRowsCount++;
 
+          // Validações obrigatórias
           if (!name || !manufacturer) {
             errors.push(`Linha ${rowNumber}: Nome e Fabricante são obrigatórios`);
-            return;
+            continue;
           }
 
           if (!m2 && !m3 && !units) {
-            errors.push(`Linha ${rowNumber}: Pelo menos um campo de quantidade (M², M³ ou Unidades) deve ser preenchido`);
-            return;
+            errors.push(`Linha ${rowNumber}: Pelo menos uma quantidade (M², M³ ou Unidades) deve ser preenchida`);
+            continue;
           }
 
           console.log(`\n📋 Processing Excel row ${rowNumber}:`);
+          console.log(`  ID: "${id}"`);
           console.log(`  Name: "${name}"`);
           console.log(`  Manufacturer: "${manufacturer}"`);
+          console.log(`  Quantities: M²=${m2}, M³=${m3}, Units=${units}`);
 
-          // Try to find matching material in database
-          const matchingMaterial = findMatchingMaterial({ name, manufacturer }, existingMaterials);
+          // Tentar encontrar material correspondente
+          const matchingMaterial = findMatchingMaterial(
+            { name, manufacturer }, 
+            existingMaterials
+          );
           
           const projectMaterial: ProjectMaterial = {
             id: id || `ROW_${rowNumber}`,
-            name: name,
-            manufacturer: manufacturer,
+            name,
+            manufacturer,
             quantity_m2: m2 && !isNaN(m2) ? m2 : undefined,
             quantity_m3: m3 && !isNaN(m3) ? m3 : undefined,
             units: units && !isNaN(units) ? units : undefined,
@@ -281,17 +352,18 @@ export function ProjectUpload({ onMaterialsUploaded, existingMaterials = [] }: P
 
           if (matchingMaterial) {
             matchedCount++;
-            console.log(`✅ Row ${rowNumber}: MATCHED with DB ID ${matchingMaterial.id}`);
+            console.log(`✅ Row ${rowNumber}: MATCHED with database material ID ${matchingMaterial.id}`);
           } else {
-            console.log(`❌ Row ${rowNumber}: NO MATCH FOUND`);
+            console.log(`❌ Row ${rowNumber}: NO MATCH FOUND in database`);
           }
 
           processedMaterials.push(projectMaterial);
+          
         } catch (err) {
-          console.error(`❌ Error processing row ${index + 2}:`, err);
-          errors.push(`Linha ${index + 2}: Erro ao processar material - ${err}`);
+          console.error(`❌ Error processing row ${rowNumber}:`, err);
+          errors.push(`Linha ${rowNumber}: Erro ao processar - ${err}`);
         }
-      });
+      }
 
       const results = {
         total: validRowsCount,
@@ -300,27 +372,27 @@ export function ProjectUpload({ onMaterialsUploaded, existingMaterials = [] }: P
         errors: errors
       };
 
-      console.log('\n📊 ===========================================');
-      console.log('📊 FINAL PROCESSING RESULTS:');
-      console.log('📊 Total valid rows:', results.total);
-      console.log('📊 Processed materials:', results.processed);
-      console.log('📊 Matched materials:', results.matched);
-      console.log('📊 Unmatched materials:', results.processed - results.matched);
-      console.log('📊 Errors:', results.errors.length);
-      console.log('📊 ===========================================\n');
+      console.log('\n📊 =================== PROCESSING RESULTS ===================');
+      console.log('📊 Valid rows found:', results.total);
+      console.log('📊 Materials processed:', results.processed);
+      console.log('📊 Materials matched:', results.matched);
+      console.log('📊 Materials unmatched:', results.processed - results.matched);
+      console.log('📊 Processing errors:', results.errors.length);
+      console.log('📊 Match rate:', results.processed > 0 ? ((results.matched / results.processed) * 100).toFixed(1) + '%' : '0%');
+      console.log('📊 =========================================================\n');
 
       setUploadedMaterials(processedMaterials);
       setProcessingResults(results);
       onMaterialsUploaded(processedMaterials);
       
     } catch (err) {
-      console.error('❌ Error processing Excel file:', err);
-      setError("Erro ao processar o arquivo Excel. Verifique se o formato está correto.");
+      console.error('❌ Excel processing error:', err);
+      setError("Erro ao processar arquivo Excel. Verifique o formato.");
       setProcessingResults({
         total: 0,
         processed: 0,
         matched: 0,
-        errors: ["Formato de arquivo inválido ou erro de leitura"]
+        errors: ["Erro de formato ou leitura do arquivo"]
       });
     } finally {
       setIsProcessing(false);
@@ -385,7 +457,7 @@ export function ProjectUpload({ onMaterialsUploaded, existingMaterials = [] }: P
               className="bg-[#424242] border-[#525252] text-white file:bg-[#525252] file:text-white file:border-0"
             />
             <p className="text-xs text-gray-400 mt-1">
-              Formato esperado: Colunas ID, Nome, Fabricante, M², M³, Unidades
+              Formato: Colunas ID, Nome, Fabricante, M², M³, Unidades
             </p>
           </div>
 
@@ -410,10 +482,11 @@ export function ProjectUpload({ onMaterialsUploaded, existingMaterials = [] }: P
                 <span className="text-sm font-medium">Processamento Concluído</span>
               </div>
               <div className="text-sm text-gray-300">
-                <p>Total de materiais válidos no Excel: {processingResults.total}</p>
+                <p>Total de materiais válidos: {processingResults.total}</p>
                 <p>Materiais processados: {processingResults.processed}</p>
-                <p>Materiais encontrados na base de dados: {processingResults.matched}</p>
-                <p>Materiais não encontrados: {processingResults.processed - processingResults.matched}</p>
+                <p className="text-green-400">Materiais encontrados na base: {processingResults.matched}</p>
+                <p className="text-red-400">Materiais não encontrados: {processingResults.processed - processingResults.matched}</p>
+                <p>Taxa de correspondência: {processingResults.processed > 0 ? ((processingResults.matched / processingResults.processed) * 100).toFixed(1) + '%' : '0%'}</p>
                 {processingResults.errors.length > 0 && (
                   <div className="mt-2">
                     <p className="text-red-400">Erros encontrados:</p>
